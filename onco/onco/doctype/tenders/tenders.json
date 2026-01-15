@@ -1,0 +1,250 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2019-10-11 23:25:55.059917",
+ "doctype": "DocType",
+ "document_type": "Document",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "tender_type",
+  "category",
+  "tender_number",
+  "year_of_tender",
+  "hospitalagent_name",
+  "column_break_hvqm",
+  "date",
+  "tender_start_date",
+  "tender_end_date",
+  "supplying_by",
+  "items_section",
+  "items_fmd",
+  "tender_supplier",
+  "item_tender",
+  "amended_from",
+  "offers_tab",
+  "onco_offers_section",
+  "onco_offers_view",
+  "onco_price_offer",
+  "onco_technical_offer",
+  "distributors_offers_section",
+  "distributors_offers_view",
+  "distributors_price_offer",
+  "distributors_technical_offer"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "\nTNDR-FMD-.YYYY.-.####\nTNDR-AWR-UPA-.YYYY.-.{tender_number}.\nTNDR-AWR-PRV-.YYYY.-.{tender_number}.\nTNDR-ACP-UPA-.YYYY.-.{tender_number}.\nTNDR-ACP-PRV-.YYYY.-.{tender_number}."
+  },
+  {
+   "fieldname": "tender_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Tender Type",
+   "options": "\nTenders for market data\nAwarded Tenders\nAccepted Tenders",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.tender_type != \"Tenders for market data\"",
+   "fieldname": "category",
+   "fieldtype": "Select",
+   "label": "Category",
+   "mandatory_depends_on": "eval:doc.tender_type != \"Tenders for market data\"",
+   "options": "\nUPA Tender\nPrivate Tender"
+  },
+  {
+   "depends_on": "eval:doc.tender_type != \"Tenders for market data\"",
+   "fieldname": "tender_number",
+   "fieldtype": "Data",
+   "label": "Tender Number",
+   "mandatory_depends_on": "eval:doc.tender_type != \"Tenders for market data\""
+  },
+  {
+   "fieldname": "year_of_tender",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Year Of Tender",
+   "reqd": 1
+  },
+  {
+   "fieldname": "hospitalagent_name",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Tender Customer Name",
+   "options": "Customer",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_hvqm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "tender_start_date",
+   "fieldtype": "Date",
+   "label": "Tender Start Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "tender_end_date",
+   "fieldtype": "Date",
+   "label": "Tender End Date",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.tender_type != \"Tenders for market data\"",
+   "fieldname": "supplying_by",
+   "fieldtype": "Select",
+   "label": "Supplying By",
+   "options": "\nOncopharm\nDistributor\nOncopharm & Distributor"
+  },
+  {
+   "fieldname": "items_section",
+   "fieldtype": "Section Break",
+   "label": "Items"
+  },
+  {
+   "depends_on": "eval:doc.tender_type == \"Tenders for market data\"",
+   "fieldname": "items_fmd",
+   "fieldtype": "Table",
+   "label": "Items FMD",
+   "options": "Items FMD"
+  },
+  {
+   "depends_on": "eval:doc.tender_type == \"Awarded Tenders\"",
+   "fieldname": "item_tender",
+   "fieldtype": "Table",
+   "label": "Item Tender",
+   "options": "Item Tender"
+  },
+  {
+   "depends_on": "eval:doc.tender_type == \"Accepted Tenders\" || doc.tender_type == \"Awarded Tenders\" && doc.supplying_by != 'Oncopharm'",
+   "fieldname": "tender_supplier",
+   "fieldtype": "Table",
+   "label": "Tender Supplier",
+   "options": "Tender Supplier"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Tenders",
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "offers_tab",
+   "fieldtype": "Tab Break",
+   "label": "Offers"
+  },
+  {
+   "fieldname": "onco_offers_section",
+   "fieldtype": "Section Break",
+   "label": "Onco Offers"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "onco_price_offer",
+   "fieldtype": "Table",
+   "hidden": 1,
+   "label": "Onco Price Offer",
+   "options": "Onco Price Offer"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "onco_technical_offer",
+   "fieldtype": "Table",
+   "hidden": 1,
+   "label": "Onco Technical Offer",
+   "options": "Onco Technical Offer"
+  },
+  {
+   "fieldname": "distributors_offers_section",
+   "fieldtype": "Section Break",
+   "label": "Distributors Offers"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "distributors_price_offer",
+   "fieldtype": "Table",
+   "hidden": 1,
+   "label": "Distributors Price Offer",
+   "options": "Distributors Price Offer"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "distributors_technical_offer",
+   "fieldtype": "Table",
+   "hidden": 1,
+   "label": "Distributors Technical Offer",
+   "options": "Distributors Technical Offer"
+  },
+  {
+   "fieldname": "onco_offers_view",
+   "fieldtype": "HTML",
+   "label": "Onco Offers View"
+  },
+  {
+   "fieldname": "distributors_offers_view",
+   "fieldtype": "HTML",
+   "label": "Distributors Offers View"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-01-01 02:29:00.691340",
+ "modified_by": "Administrator",
+ "module": "Onco",
+ "name": "Tenders",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "nado_rml@hotmail.com",
+ "permissions": [
+  {
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "secretary",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "quick_entry": 1,
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
