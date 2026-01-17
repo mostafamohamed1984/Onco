@@ -328,6 +328,7 @@ def upload_fmd_items(parent, file_url):
         doc.save()
         return True
         
+    except Exception as e:
         frappe.log_error(frappe.get_traceback(), "FMD Upload Error")
         frappe.throw(f"Error parsing file: {str(e)}")
 
