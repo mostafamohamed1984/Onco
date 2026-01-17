@@ -45,7 +45,9 @@ app_license = "mit"
 # include js in doctype views
 doctype_js = {
     "Purchase Invoice": "public/js/p_inv.override.js",
-	"Purchase Receipt": "public/js/purchase_receipt_override.js"
+	"Purchase Receipt": "public/js/purchase_receipt_override.js",
+    "Supplier Quotation": "public/js/supplier_quotation.js",
+    "Purchase Order": "public/js/purchase_order.js"
 }
 # doctype_js = {"doctype" : "public/js/doctype.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
