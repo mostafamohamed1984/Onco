@@ -1,10 +1,10 @@
 # Copyright (c) 2026, ds and contributors
 # For license information, please see license.txt
 
-# import frappe
 from frappe.model.document import Document
 
 
+<<<<<<< HEAD:onco/onco/doctype/supplier_quotation/supplier_quotation.py
 class SupplierQuotation(Document):
 	# begin: auto-generated types
 	# This code is auto-generated. Do not modify anything in this block.
@@ -89,4 +89,7 @@ class SupplierQuotation(Document):
 		transaction_date: DF.Date
 		valid_till: DF.Date | None
 	# end: auto-generated types
+=======
+class PriceListForTender(Document):
+>>>>>>> f53d04c3ea85962bbc45f422aa53854d31fb0308:onco/onco/doctype/price_list_for_tender/price_list_for_tender.py
 	pass
