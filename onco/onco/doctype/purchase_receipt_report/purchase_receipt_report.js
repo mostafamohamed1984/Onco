@@ -1,4 +1,3 @@
-// Custom Logic for Purchase Receipt Report
 frappe.ui.form.on("Purchase Receipt Report", {
     refresh: function (frm) {
         if (frm.doc.docstatus === 1) {
@@ -8,6 +7,30 @@ frappe.ui.form.on("Purchase Receipt Report", {
                     frm: frm
                 })
             }, __("Create"));
+        }
+    },
+
+    purchase_receipt: function (frm) {
+        if (frm.doc.purchase_receipt) {
+            frappe.db.get_value("Purchase Receipt", frm.doc.purchase_receipt, "custom_shipment_ref")
+                .then(r => {
+                    if (r.message && r.message.custom_shipment_ref) {
+                        frm.set_value("custom_shipment_ref", r.message.custom_shipment_ref);
+                        frm.trigger("fetch_shipment_status");
+                    }
+                });
+        }
+    },
+
+    fetch_shipment_status: function (frm) {
+        if (frm.doc.custom_shipment_ref) {
+            frappe.db.get_doc("Shipments", frm.doc.custom_shipment_ref)
+                .then(shipment => {
+                    frm.set_value("invoice_present", shipment.invoice ? 1 : 0);
+                    frm.set_value("awb_present", shipment.awb ? 1 : 0);
+                    frm.set_value("coa_present", shipment.certificate_of_analysis_ ? 1 : 0);
+                    frm.set_value("data_logger_present", shipment.cold_chain ? 1 : 0);
+                });
         }
     }
 });

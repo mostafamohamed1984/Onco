@@ -143,13 +143,14 @@ override_doctype_class = {
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"Purchase Receipt": {
+		"on_submit": "onco.onco.doctype.shipments.shipments.on_purchase_receipt_submit"
+	},
+	"Sales Invoice": {
+		"validate": "onco.onco.tender_validation.validate_sales_invoice_tender_price"
+	}
+}
 
 # Scheduled Tasks
 # ---------------

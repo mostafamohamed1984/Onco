@@ -9,6 +9,7 @@
         "naming_series",
         "date",
         "status",
+        "shipment_no",
         "shipment_section",
         "items",
         "amended_from"
@@ -32,6 +33,12 @@
             "fieldtype": "Select",
             "label": "Status",
             "options": "\nPending\nCompleted\nCancelled"
+        },
+        {
+            "fieldname": "shipment_no",
+            "fieldtype": "Link",
+            "label": "Shipment No",
+            "options": "Shipments"
         },
         {
             "fieldname": "shipment_section",

@@ -6,8 +6,14 @@
     "engine": "InnoDB",
     "field_order": [
         "shipment_status_dashboard",
+        "status",
         "section_break_agoz",
+        "mode_of_shipping",
+        "custom_importation_approval",
         "purchase_invoice",
+        "custom_invoices",
+        "packing_details_section",
+        "packing_details",
         "awb",
         "invoice",
         "certificate_of_analysis_",
@@ -21,33 +27,39 @@
         "expiry_date",
         "manufacturing_date_",
         "awb_no",
+        "swb_no",
         "awb_date",
         "cold_chain_section",
         "cold_chain",
         "cold_chain_equipment_ready",
         "2_arrival_status_section",
         "arrived",
-        "column_break_xhsi",
         "arrivail_date",
         "3_bank_authantication_section",
         "bank_authenticated",
-        "column_break_tbjb",
+        "date_of_submission_bank",
         "bank_authenticating_date",
+        "bank_document_reference",
         "4_restricted_release_statu_section",
         "restricted_release_status",
-        "column_break_nwul",
+        "date_of_submission_restricted",
         "restricted_release_date",
         "5_customs_release_status_section",
         "customs_release_status",
+        "date_of_submission_customs",
         "customs_release_no",
         "customs_release_date",
         "6_received_at_warehouse_section",
         "received_at_warehouse",
         "received_date",
+        "time_of_received",
         "received_person",
         "received_warehouse",
         "received_by",
         "third_party_name",
+        "warehouse_transit_section",
+        "source_warehouse",
+        "target_warehouse",
         "column_break_mkxp",
         "amended_from",
         "additional_info_section",
@@ -63,15 +75,53 @@
             "label": "Shipment Status"
         },
         {
+            "default": "Planned",
+            "fieldname": "status",
+            "fieldtype": "Select",
+            "label": "Status",
+            "options": "\nPlanned\nIn Progress\nCompleted\nCancelled"
+        },
+        {
             "fieldname": "section_break_agoz",
             "fieldtype": "Section Break",
             "label": "1 SHIPMENT ACCEPTANCETANCE "
         },
         {
+            "fieldname": "mode_of_shipping",
+            "fieldtype": "Select",
+            "label": "Mode of Shipping",
+            "options": "\nAir freight\nSea freight",
+            "reqd": 1
+        },
+        {
+            "fieldname": "custom_importation_approval",
+            "fieldtype": "Link",
+            "label": "Importation Approval Ref",
+            "options": "Supplier Quotation",
+            "description": "Regulatory: fiche importation approvals Number"
+        },
+        {
             "fieldname": "purchase_invoice",
             "fieldtype": "Link",
-            "label": "Purchase Invoice",
+            "label": "Primary Purchase Invoice",
             "options": "Purchase Invoice"
+        },
+        {
+            "fieldname": "custom_invoices",
+            "fieldtype": "Table",
+            "label": "Additional Purchase Invoices",
+            "options": "Shipment Invoice"
+        },
+        {
+            "fieldname": "packing_details_section",
+            "fieldtype": "Section Break",
+            "label": "Packing Details"
+        },
+        {
+            "fieldname": "packing_details",
+            "fieldtype": "Table",
+            "label": "Packing Details",
+            "options": "Packing Detail"
         },
         {
             "fieldname": "awb",
@@ -115,7 +165,14 @@
         {
             "fieldname": "awb_no",
             "fieldtype": "Data",
-            "label": "AWB no"
+            "label": "AWB no",
+            "depends_on": "eval:doc.mode_of_shipping=='Air freight'"
+        },
+        {
+            "fieldname": "swb_no",
+            "fieldtype": "Data",
+            "label": "SWB no",
+            "depends_on": "eval:doc.mode_of_shipping=='Sea freight'"
         },
         {
             "fieldname": "awb_date",
@@ -161,59 +218,68 @@
             "label": "ARRIVAIL DATE"
         },
         {
-            "fieldname": "3_bank_authantication_section",
-            "fieldtype": "Section Break",
-            "label": "3 Bank Authantication "
-        },
-        {
-            "default": "0",
-            "fieldname": "bank_authenticated",
-            "fieldtype": "Check",
-            "label": "Bank authenticated"
-        },
-        {
-            "fieldname": "column_break_tbjb",
-            "fieldtype": "Column Break"
+            "fieldname": "date_of_submission_bank",
+            "fieldtype": "Date",
+            "label": "Date Of Submission (Bank)",
+            "depends_on": "eval:doc.bank_authenticated==1"
         },
         {
             "fieldname": "bank_authenticating_date",
             "fieldtype": "Date",
-            "label": "Bank authenticating date"
+            "label": "Date Of Approval (Bank)",
+            "depends_on": "eval:doc.bank_authenticated==1"
+        },
+        {
+            "fieldname": "bank_document_reference",
+            "fieldtype": "Data",
+            "label": "Bank Document Reference",
+            "depends_on": "eval:doc.bank_authenticated==1"
         },
         {
             "fieldname": "4_restricted_release_statu_section",
             "fieldtype": "Section Break",
-            "label": "4 Restricted release statu "
+            "label": "4 Restricted Release Status"
         },
         {
-            "fieldname": "column_break_nwul",
-            "fieldtype": "Column Break"
+            "fieldname": "date_of_submission_restricted",
+            "fieldtype": "Date",
+            "label": "Date Of Submission (Restricted)",
+            "depends_on": "eval:doc.restricted_release_status==1"
         },
         {
             "fieldname": "restricted_release_date",
             "fieldtype": "Date",
-            "label": "Restricted release date"
+            "label": "Date Of Approval (Restricted)",
+            "depends_on": "eval:doc.restricted_release_status==1"
         },
         {
             "fieldname": "5_customs_release_status_section",
             "fieldtype": "Section Break",
-            "label": "5 Customs release status "
+            "label": "5 Customs Release Status"
         },
         {
             "default": "0",
             "fieldname": "customs_release_status",
             "fieldtype": "Check",
-            "label": "Customs release status"
+            "label": "Customs Release Status"
+        },
+        {
+            "fieldname": "date_of_submission_customs",
+            "fieldtype": "Date",
+            "label": "Date Of Submission (Customs)",
+            "depends_on": "eval:doc.customs_release_status==1"
         },
         {
             "fieldname": "customs_release_no",
             "fieldtype": "Data",
-            "label": "Customs release No"
+            "label": "Customs Release No",
+            "depends_on": "eval:doc.customs_release_status==1"
         },
         {
             "fieldname": "customs_release_date",
             "fieldtype": "Date",
-            "label": "Customs release Date"
+            "label": "Date Of Customs Release",
+            "depends_on": "eval:doc.customs_release_status==1"
         },
         {
             "fieldname": "6_received_at_warehouse_section",
@@ -228,13 +294,19 @@
         },
         {
             "fieldname": "received_date",
-            "fieldtype": "Datetime",
-            "label": "Received Date"
+            "fieldtype": "Date",
+            "label": "Date Of Received"
+        },
+        {
+            "fieldname": "time_of_received",
+            "fieldtype": "Time",
+            "label": "Time Of Received"
         },
         {
             "fieldname": "received_person",
-            "fieldtype": "Data",
-            "label": "Received Person"
+            "fieldtype": "Link",
+            "label": "Received Person",
+            "options": "User"
         },
         {
             "fieldname": "received_warehouse",
@@ -254,6 +326,25 @@
             "fieldtype": "Data",
             "label": "Third Party Name",
             "depends_on": "eval:doc.received_by=='Third Party'"
+        },
+        {
+            "fieldname": "warehouse_transit_section",
+            "fieldtype": "Section Break",
+            "label": "Warehouse Transit"
+        },
+        {
+            "fieldname": "source_warehouse",
+            "fieldtype": "Link",
+            "label": "Source Warehouse",
+            "options": "Warehouse",
+            "default": "Imported  Finished Phr Incoming Warehouse - Onco"
+        },
+        {
+            "fieldname": "target_warehouse",
+            "fieldtype": "Link",
+            "label": "Target Warehouse",
+            "options": "Warehouse",
+            "default": "Imported Finished Phr Receipt and Inspection Warehouse  - Onco"
         },
         {
             "fieldname": "column_break_mkxp",

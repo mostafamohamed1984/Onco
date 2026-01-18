@@ -1,0 +1,38 @@
+[
+    {
+        "fieldname": "custom_tender_ref",
+        "fieldtype": "Link",
+        "insert_after": "customer",
+        "label": "Tender Reference",
+        "options": "Tenders"
+    },
+    {
+        "default": "0",
+        "fieldname": "custom_price_deviation_approved",
+        "fieldtype": "Check",
+        "insert_after": "custom_tender_ref",
+        "label": "Price Deviation Approved"
+    },
+    {
+        "depends_on": "eval:doc.custom_price_deviation_approved==1",
+        "fieldname": "custom_cause_of_deviation",
+        "fieldtype": "Small Text",
+        "insert_after": "custom_price_deviation_approved",
+        "label": "Cause of Deviation"
+    },
+    {
+        "depends_on": "eval:doc.custom_price_deviation_approved==1",
+        "fieldname": "custom_approved_by",
+        "fieldtype": "Link",
+        "insert_after": "custom_cause_of_deviation",
+        "label": "Approved By",
+        "options": "User"
+    },
+    {
+        "depends_on": "eval:doc.custom_price_deviation_approved==1",
+        "fieldname": "custom_approval_date",
+        "fieldtype": "Date",
+        "insert_after": "custom_approved_by",
+        "label": "Approval Date"
+    }
+]

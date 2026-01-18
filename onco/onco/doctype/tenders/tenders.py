@@ -14,6 +14,9 @@ class Tenders(Document):
 		self.populate_tender_status()
 		self.validate_tender_dates()
 		self.check_tender_rule_change_permission()
+		
+		if self.tender_type == "Accepted Tenders":
+			self.populate_tender_price_deviation_details()
 
 	def on_submit(self):
 		"""Actions to perform on tender submission"""
@@ -127,9 +130,7 @@ class Tenders(Document):
 				})
 
 	def populate_tender_status(self):
-		"""Populate tender status from item tables"""
-		self.tender_status = []
-
+		"""Populate or update tender status from item tables without resetting supplied quantities"""
 		# Get items from appropriate table
 		items_to_track = []
 		if self.tender_type == "Tenders for market data" and self.items_fmd:
@@ -137,19 +138,35 @@ class Tenders(Document):
 		elif self.tender_type in ["Awarded Tenders", "Tender Submission", "Accepted Tenders"] and self.item_tender:
 			items_to_track = self.item_tender
 
-		# Create status rows
+		# Map existing status entries by item
+		existing_status = {row.item_name: row for row in self.tender_status or []}
+		
+		new_status_rows = []
+		seen_items = set()
+
 		for row in items_to_track:
-			item_code = row.item_code if hasattr(row, 'item_code') else None
-			item_name = row.item_name if hasattr(row, 'item_name') else ""
+			item_code = row.item_code if hasattr(row, 'item_code') else (row.item if hasattr(row, 'item') else None)
+			if not item_code or item_code in seen_items:
+				continue
+			
+			seen_items.add(item_code)
 			tender_qty = row.tender_qty if hasattr(row, 'tender_qty') else (row.quantity if hasattr(row, 'quantity') else 0)
 
-			status_row = self.append("tender_status", {
-				"item_name": item_code,
-				"tender_quantity": tender_qty,
-				"supplied_quantity": 0,
-				"remaining_quantity": tender_qty,
-				"fulfillment_percent": 0
-			})
+			if item_code in existing_status:
+				# Update existing row if quantities changed
+				status_row = existing_status[item_code]
+				status_row.tender_quantity = tender_qty
+				status_row.remaining_quantity = tender_qty - (status_row.supplied_quantity or 0)
+				status_row.fulfillment_percent = (status_row.supplied_quantity / tender_qty * 100) if tender_qty > 0 else 0
+			else:
+				# Create new status row
+				self.append("tender_status", {
+					"item_name": item_code,
+					"tender_quantity": tender_qty,
+					"supplied_quantity": 0,
+					"remaining_quantity": tender_qty,
+					"fulfillment_percent": 0
+				})
 
 	def validate_tender_dates(self):
 		"""Validate that tender start date is before end date"""
@@ -164,16 +181,30 @@ class Tenders(Document):
 
 	def check_tender_rule_change_permission(self):
 		"""Check if tender rules can be changed (80% fulfillment rule)"""
-		if self.docstatus == 1 and (self.apply_extra_quantities or self.apply_extended_time):
-			# Check if tender has been supplied more than 80%
-			if self.tender_status:
-				total_tender_qty = sum(row.tender_quantity for row in self.tender_status)
-				total_supplied_qty = sum(row.supplied_quantity for row in self.tender_status)
+		if self.docstatus == 1:
+			# Get original document to see if rules changed
+			original_doc = self.get_doc_before_save()
+			if not original_doc: return
 
-				if total_tender_qty > 0:
-					fulfillment_percent = (total_supplied_qty / total_tender_qty) * 100
-					if fulfillment_percent >= 80:
-						pass # Role restriction removed for testing
+			rules_changed = (
+				self.apply_extra_quantities != original_doc.apply_extra_quantities or
+				self.extra_qty_type != original_doc.extra_qty_type or
+				self.extra_qty_value != original_doc.extra_qty_value or
+				self.apply_extended_time != original_doc.apply_extended_time or
+				self.extended_end_date != original_doc.extended_end_date
+			)
+
+			if rules_changed:
+				if self.tender_status:
+					total_tender_qty = sum(row.tender_quantity for row in self.tender_status)
+					total_supplied_qty = sum(row.supplied_quantity for row in self.tender_status)
+
+					if total_tender_qty > 0:
+						fulfillment_percent = (total_supplied_qty / total_tender_qty)
+						if fulfillment_percent >= 0.8:
+							# Check if user is Tender Manager
+							if "Tender Manager" not in frappe.get_roles(frappe.session.user):
+								frappe.throw(_("Any change in tender rules after date of start can’t be made before selling 80% from total quantities and require permission from only tender manager."))
 
 	def update_tender_end_date_if_extended(self):
 		"""Update tender end date after submission if extended time is applied"""
@@ -274,16 +305,65 @@ class Tenders(Document):
 					break
 
 			if tender_price and rate < tender_price:
-				losses = (tender_price - rate) * qty
+				# Use valuation rate as cost if available
+				item_cost = frappe.db.get_value("Item", item_code, "valuation_rate") or 0
+				
+				# Losses = (Cost - Rate) * Qty if rate < cost
+				losses = 0
+				if rate < item_cost:
+					losses = (item_cost - rate) * qty
+
 				detail_row = self.append("tender_price_deviation_details", {
 					"item_name": item_code,
 					"invoice_no": invoice_no,
 					"tender_price": tender_price,
-					"item_cost": frappe.db.get_value("Item", item_code, "standard_rate"),
+					"item_cost": item_cost,
 					"quantity_with_loss": qty,
 					"losses_value": losses,
-					"approved_status": "Pending"
+					"approved_status": "Pending",
+					"approved_by": item.get("custom_approved_by") # Optional: fetch from invoice
 				})
+
+	def populate_tender_price_deviation_details(self):
+		"""Fetch historical sales and cost data for Accepted Tenders"""
+		if not self.item_tender:
+			return
+
+		self.tender_price_deviation_details = []
+		for item in self.item_tender:
+			item_code = item.item_code
+			if not item_code: continue
+
+			# 1. Get average purchase price (cost) from valuation rate
+			item_cost = frappe.db.get_value("Item", item_code, "valuation_rate") or 0
+			
+			# 2. Get latest sales price for this item to show recent market price
+			last_sale = frappe.get_all("Sales Invoice Item", 
+				filters={"item_code": item_code, "docstatus": 1},
+				fields=["parent", "rate"],
+				order_by="creation desc",
+				limit=1
+			)
+			
+			invoice_no = last_sale[0].parent if last_sale else None
+			
+			# 3. Tender Price is the awarded price
+			tender_price = item.price or 0
+			
+			# 4. Calculate Losses: if tender price < cost, we are losing money
+			losses = 0
+			if tender_price < item_cost:
+				# Using tender quantity for potential loss calculation
+				losses = (item_cost - tender_price) * (item.tender_qty or 0)
+			
+			self.append("tender_price_deviation_details", {
+				"item_name": item_code,
+				"invoice_no": invoice_no,
+				"tender_price": tender_price,
+				"item_cost": item_cost,
+				"quantity_with_loss": item.tender_qty if tender_price < item_cost else 0,
+				"losses_value": losses
+			})
 
 @frappe.whitelist()
 def upload_fmd_items(parent, file_url):

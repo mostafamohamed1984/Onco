@@ -12,6 +12,9 @@ class PurchaseReceiptReport(Document):
 def make_printing_order(source_name, target_doc=None):
 	def set_missing_values(source, target):
 		target.date = frappe.utils.nowdate()
+		# Carry over Shipment No
+		if source.custom_shipment_ref:
+			target.shipment_no = source.custom_shipment_ref
 		
 	doc = get_mapped_doc("Purchase Receipt Report", source_name, {
 		"Purchase Receipt Report": {
@@ -40,6 +43,9 @@ def make_purchase_receipt_report(source_name, target_doc=None):
 			"doctype": "Purchase Receipt Report",
 			"validation": {
 				"docstatus": ["=", 1]
+			},
+			"field_map": {
+				"custom_shipment_ref": "custom_shipment_ref"
 			}
 		},
 		"Purchase Receipt Item": {

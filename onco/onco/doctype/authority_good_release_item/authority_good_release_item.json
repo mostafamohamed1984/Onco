@@ -9,10 +9,10 @@
         "item_name",
         "batch_no",
         "col_break",
-        "accepted_qty",
-        "rejected_qty",
-        "under_release_qty",
+        "actual_qty",
         "released_qty",
+        "shortage_control_qty",
+        "net_released_qty",
         "release_status"
     ],
     "fields": [
@@ -40,26 +40,28 @@
             "fieldtype": "Column Break"
         },
         {
-            "fieldname": "accepted_qty",
+            "fieldname": "actual_qty",
             "fieldtype": "Float",
-            "label": "Accepted Qty",
+            "label": "Actual Quantity (Received)",
             "read_only": 1
-        },
-        {
-            "fieldname": "rejected_qty",
-            "fieldtype": "Float",
-            "label": "Rejected Qty"
-        },
-        {
-            "fieldname": "under_release_qty",
-            "fieldtype": "Float",
-            "label": "Under Release Qty"
         },
         {
             "fieldname": "released_qty",
             "fieldtype": "Float",
             "in_list_view": 1,
-            "label": "Released Qty (Now)"
+            "label": "Released Quantity"
+        },
+        {
+            "fieldname": "shortage_control_qty",
+            "fieldtype": "Float",
+            "label": "Shortage Control Quantity",
+            "read_only": 1
+        },
+        {
+            "fieldname": "net_released_qty",
+            "fieldtype": "Float",
+            "label": "Net Released Quantity",
+            "read_only": 1
         },
         {
             "fieldname": "release_status",

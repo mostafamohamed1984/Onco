@@ -8,7 +8,17 @@
     "field_order": [
         "naming_series",
         "shipment_no",
+        "invoice_no",
+        "release_type",
+        "lot_release_subtype",
+        "analysis_batch_subtype",
+        "column_break_lot",
+        "batch_no",
+        "manufacturing_date_",
+        "expiry_date",
         "release_date",
+        "section_break_samples",
+        "no_of_samples",
         "status",
         "items_section",
         "items",
@@ -28,10 +38,69 @@
             "options": "Shipments"
         },
         {
+            "fieldname": "invoice_no",
+            "fieldtype": "Data",
+            "label": "Invoice No",
+            "read_only": 1
+        },
+        {
+            "fieldname": "release_type",
+            "fieldtype": "Select",
+            "label": "Type of Release",
+            "options": "\nLot Release Batch\nAnalysis Batch"
+        },
+        {
+            "depends_on": "eval:doc.release_type == 'Lot Release Batch'",
+            "fieldname": "lot_release_subtype",
+            "fieldtype": "Select",
+            "label": "Lot Release Sub-type",
+            "options": "\nLot Release Batch Without Shortage Control Quantity\nLot Release Batch with Shortage Control Quantity"
+        },
+        {
+            "depends_on": "eval:doc.release_type == 'Analysis Batch'",
+            "fieldname": "analysis_batch_subtype",
+            "fieldtype": "Select",
+            "label": "Analysis Batch Sub-type",
+            "options": "\nAuthority Release Total\nAuthority Release Partial with Withdrawal Sample\nWithdrawal Sample Without Partial Release"
+        },
+        {
+            "fieldname": "batch_no",
+            "fieldtype": "Data",
+            "label": "Batch No",
+            "read_only": 1
+        },
+        {
+            "fieldname": "column_break_lot",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "manufacturing_date_",
+            "fieldtype": "Date",
+            "label": "Manufacturing Date",
+            "read_only": 1
+        },
+        {
+            "fieldname": "expiry_date",
+            "fieldtype": "Date",
+            "label": "Expiry Date",
+            "read_only": 1
+        },
+        {
             "default": "Today",
             "fieldname": "release_date",
             "fieldtype": "Date",
             "label": "Release Date"
+        },
+        {
+            "fieldname": "section_break_samples",
+            "fieldtype": "Section Break",
+            "label": "Sample Management"
+        },
+        {
+            "depends_on": "eval:doc.analysis_batch_subtype && doc.analysis_batch_subtype.includes('Withdrawal Sample')",
+            "fieldname": "no_of_samples",
+            "fieldtype": "Int",
+            "label": "No of Samples"
         },
         {
             "default": "Draft",
