@@ -6,7 +6,12 @@
     "editable_grid": 1,
     "engine": "InnoDB",
     "field_order": [
-        "purchase_invoice"
+        "purchase_invoice",
+        "invoice_number",
+        "invoice_date",
+        "item",
+        "quantity",
+        "batch_number"
     ],
     "fields": [
         {
@@ -16,6 +21,42 @@
             "label": "Purchase Invoice",
             "options": "Purchase Invoice",
             "reqd": 1
+        },
+        {
+            "fieldname": "invoice_number",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Invoice Number",
+            "read_only": 1
+        },
+        {
+            "fieldname": "invoice_date",
+            "fieldtype": "Date",
+            "in_list_view": 1,
+            "label": "Invoice Date",
+            "read_only": 1
+        },
+        {
+            "fieldname": "item",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Item",
+            "options": "Item",
+            "read_only": 1
+        },
+        {
+            "fieldname": "quantity",
+            "fieldtype": "Float",
+            "in_list_view": 1,
+            "label": "Quantity",
+            "read_only": 1
+        },
+        {
+            "fieldname": "batch_number",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Batch Number",
+            "read_only": 1
         }
     ],
     "index_web_pages_for_search": 1,

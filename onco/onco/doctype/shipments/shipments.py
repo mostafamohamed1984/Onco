@@ -9,6 +9,8 @@ from erpnext.stock.doctype.purchase_receipt.purchase_receipt import make_purchas
 class Shipments(Document):
     def validate(self):
         self.calculate_milestone_completion()
+        self.validate_status_sequence()
+        self.validate_mandatory_fields_per_stage()
 
     def calculate_milestone_completion(self):
         steps = [
@@ -22,6 +24,83 @@ class Shipments(Document):
             self.status = "Completed"
         elif any(steps):
             self.status = "In Progress"
+
+    def validate_status_sequence(self):
+        """Enforce strict sequence: Acceptance -> Arrival -> Bank Auth -> Restricted -> Customs -> Warehouse"""
+        stages = [
+            ("arrived", "Arrival Status"),
+            ("bank_authenticated", "Bank Authentication"),
+            ("restricted_release_status", "Restricted Release Status"),
+            ("customs_release_status", "Customs Release Status"),
+            ("received_at_warehouse", "Received at Warehouse")
+        ]
+        
+        previous_stage_completed = True  # Acceptance stage is always considered first
+        
+        for field_name, stage_label in stages:
+            current_stage_value = getattr(self, field_name, 0)
+            
+            if current_stage_value and not previous_stage_completed:
+                previous_stage_name = stages[stages.index((field_name, stage_label)) - 1][1] if stages.index((field_name, stage_label)) > 0 else "Shipment Acceptance"
+                frappe.throw(_("Cannot complete '{0}' stage. Please complete '{1}' stage first.").format(stage_label, previous_stage_name))
+            
+            if current_stage_value:
+                previous_stage_completed = True
+            else:
+                previous_stage_completed = False
+
+    def validate_mandatory_fields_per_stage(self):
+        """Validate mandatory fields based on current stage"""
+        # Stage 1: Shipment Acceptance - Mode of Shipping is already mandatory
+        if not self.mode_of_shipping:
+            frappe.throw(_("Mode of Shipping is mandatory"))
+        
+        # Stage 2: Arrival Status
+        if self.arrived:
+            if not self.arrivail_date:
+                frappe.throw(_("Arrival Date is mandatory when Arrived is checked"))
+        
+        # Stage 3: Bank Authentication
+        if self.bank_authenticated:
+            if not self.date_of_submission_bank:
+                frappe.throw(_("Date of Submission (Bank) is mandatory when Bank Authenticated is checked"))
+            if not self.bank_authenticating_date:
+                frappe.throw(_("Date of Approval (Bank) is mandatory when Bank Authenticated is checked"))
+        
+        # Stage 4: Restricted Release Status
+        if self.restricted_release_status:
+            if not self.date_of_submission_restricted:
+                frappe.throw(_("Date of Submission (Restricted) is mandatory when Restricted Release Status is checked"))
+            if not self.restricted_release_date:
+                frappe.throw(_("Date of Approval (Restricted) is mandatory when Restricted Release Status is checked"))
+        
+        # Stage 5: Customs Release Status
+        if self.customs_release_status:
+            if not self.date_of_submission_customs:
+                frappe.throw(_("Date of Submission (Customs) is mandatory when Customs Release Status is checked"))
+            if not self.customs_release_no:
+                frappe.throw(_("Customs Release No is mandatory when Customs Release Status is checked"))
+            if not self.customs_release_date:
+                frappe.throw(_("Date of Customs Release is mandatory when Customs Release Status is checked"))
+        
+        # Stage 6: Received at Warehouse
+        if self.received_at_warehouse:
+            if not self.received_date:
+                frappe.throw(_("Date of Received is mandatory when Received at Warehouse is checked"))
+            if not self.received_warehouse:
+                frappe.throw(_("Received Warehouse is mandatory when Received at Warehouse is checked"))
+        
+        # AWB/SWB validation based on mode of shipping
+        if self.mode_of_shipping == "Air freight":
+            if not self.awb_no:
+                frappe.throw(_("AWB No is mandatory for Air freight"))
+            if not self.awb_date:
+                frappe.throw(_("AWB Date is mandatory for Air freight"))
+        elif self.mode_of_shipping == "Sea freight":
+            if not self.swb_no:
+                frappe.throw(_("SWB No is mandatory for Sea freight"))
+            if not self.awb_date:  # Using awb_date field for SWB date as well
+                frappe.throw(_("SWB Date is mandatory for Sea freight"))
 
     def on_submit(self):
         if self.received_at_warehouse:
@@ -103,6 +182,73 @@ def get_shipment(purchase_invoice,rec):
     if not shipment:
         frappe.throw(f"No shipment data")
     return shipment
+@frappe.whitelist()
+def get_batch_from_stock(purchase_invoice, item_code):
+    """Fetch batch number from stock records (Delivery Note / Stock Ledger)"""
+    try:
+        # First, try to get batch from Purchase Invoice Item
+        pi_items = frappe.get_all("Purchase Invoice Item",
+            filters={"parent": purchase_invoice, "item_code": item_code},
+            fields=["batch_no", "name"])
+        
+        if pi_items and pi_items[0].get("batch_no"):
+            return {"batch_no": pi_items[0].batch_no}
+        
+        # Try to get from Delivery Note linked to this Purchase Invoice
+        dn_items = frappe.get_all("Delivery Note Item",
+            filters={"against_sales_invoice": purchase_invoice, "item_code": item_code},
+            fields=["batch_no"],
+            limit=1)
+        
+        if dn_items and dn_items[0].get("batch_no"):
+            return {"batch_no": dn_items[0].batch_no}
+        
+        # Try to get from Stock Ledger Entry
+        sle = frappe.get_all("Stock Ledger Entry",
+            filters={"voucher_no": purchase_invoice, "item_code": item_code},
+            fields=["batch_no"],
+            order_by="posting_date desc",
+            limit=1)
+        
+        if sle and sle[0].get("batch_no"):
+            return {"batch_no": sle[0].batch_no}
+        
+        return {"batch_no": None}
+    except Exception as e:
+        frappe.log_error(f"Error fetching batch: {str(e)}")
+        return {"batch_no": None}
+
+@frappe.whitelist()
+def get_invoice_items_with_batches(purchase_invoice):
+    """Get all items with their batches from a purchase invoice"""
+    try:
+        invoice = frappe.get_doc("Purchase Invoice", purchase_invoice)
+        items_data = []
+        
+        for item in invoice.items:
+            batch_no = item.batch_no
+            # If no batch in invoice item, try to fetch from stock
+            if not batch_no:
+                batch_data = get_batch_from_stock(purchase_invoice, item.item_code)
+                batch_no = batch_data.get("batch_no")
+            
+            items_data.append({
+                "item_code": item.item_code,
+                "item_name": item.item_name,
+                "quantity": item.qty,
+                "batch_no": batch_no,
+                "uom": item.uom
+            })
+        
+        return {
+            "invoice_number": invoice.name,
+            "invoice_date": invoice.posting_date,
+            "items": items_data
+        }
+    except Exception as e:
+        frappe.log_error(f"Error fetching invoice items: {str(e)}")
+        frappe.throw(str(e))
+
 @frappe.whitelist()
 def set_shipment(doc_shipments, rec):
     try:

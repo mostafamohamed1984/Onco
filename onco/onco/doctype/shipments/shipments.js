@@ -3,6 +3,8 @@
 frappe.ui.form.on("Shipments", {
   refresh: function (frm) {
     frm.trigger("render_dashboard");
+    frm.trigger("update_awb_swb_labels");
+    
     if (frm.doc.docstatus === 1 && frm.doc.status === "Completed") {
       frm.add_custom_button(__("Purchase Receipt"), function () {
         frappe.model.open_mapped_doc({
@@ -20,6 +22,47 @@ frappe.ui.form.on("Shipments", {
 
   mode_of_shipping: function (frm) {
     frm.trigger("set_naming_series");
+    frm.trigger("update_awb_swb_labels");
+  },
+
+  update_awb_swb_labels: function (frm) {
+    // Update AWB/SWB labels dynamically based on mode of shipping
+    if (frm.doc.mode_of_shipping === "Air freight") {
+      // Show AWB fields
+      frm.set_df_property("awb", "label", "AWB");
+      if (frm.fields_dict.awb_no) {
+        frm.set_df_property("awb_no", "label", "AWB No");
+        frm.set_df_property("awb_no", "hidden", 0);
+        frm.set_df_property("awb_no", "reqd", 1);
+      }
+      if (frm.fields_dict.swb_no) {
+        frm.set_df_property("swb_no", "hidden", 1);
+        frm.set_df_property("swb_no", "reqd", 0);
+      }
+      if (frm.fields_dict.awb_date) {
+        frm.set_df_property("awb_date", "label", "AWB Date");
+        frm.set_df_property("awb_date", "hidden", 0);
+        frm.set_df_property("awb_date", "reqd", 1);
+      }
+    } else if (frm.doc.mode_of_shipping === "Sea freight") {
+      // Show SWB fields
+      frm.set_df_property("awb", "label", "SWB");
+      if (frm.fields_dict.swb_no) {
+        frm.set_df_property("swb_no", "label", "SWB No");
+        frm.set_df_property("swb_no", "hidden", 0);
+        frm.set_df_property("swb_no", "reqd", 1);
+      }
+      if (frm.fields_dict.awb_no) {
+        frm.set_df_property("awb_no", "hidden", 1);
+        frm.set_df_property("awb_no", "reqd", 0);
+      }
+      if (frm.fields_dict.awb_date) {
+        frm.set_df_property("awb_date", "label", "SWB Date");
+        frm.set_df_property("awb_date", "hidden", 0);
+        frm.set_df_property("awb_date", "reqd", 1);
+      }
+    }
+    frm.refresh_fields();
   },
 
   awb_no: function (frm) {
@@ -52,9 +95,78 @@ frappe.ui.form.on("Shipments", {
     }
   },
 
+  custom_invoices: function (frm, cdt, cdn) {
+    // Auto-populate invoice details when invoices are added
+    let row = locals[cdt][cdn];
+    if (row.purchase_invoice) {
+      frm.trigger("populate_invoice_details", row);
+    }
+  },
+
+  populate_invoice_details: function (frm, row) {
+    if (!row || !row.purchase_invoice) {
+      return;
+    }
+
+    // Fetch invoice details with items and batches
+    frappe.call({
+      method: "onco.onco.doctype.shipments.shipments.get_invoice_items_with_batches",
+      args: {
+        purchase_invoice: row.purchase_invoice
+      },
+      callback: function(r) {
+        if (r.message) {
+          let invoice_data = r.message;
+          
+          // Set invoice number and date
+          frappe.model.set_value(row.doctype, row.name, "invoice_number", invoice_data.invoice_number);
+          frappe.model.set_value(row.doctype, row.name, "invoice_date", invoice_data.invoice_date);
+          
+          // For now, populate with first item (can be enhanced to show all items)
+          if (invoice_data.items && invoice_data.items.length > 0) {
+            let first_item = invoice_data.items[0];
+            frappe.model.set_value(row.doctype, row.name, "item", first_item.item_code);
+            frappe.model.set_value(row.doctype, row.name, "quantity", first_item.quantity);
+            frappe.model.set_value(row.doctype, row.name, "batch_number", first_item.batch_no || "");
+          }
+          
+          frm.refresh_field("custom_invoices");
+        }
+      }
+    });
+  },
+
   validate: function (frm) {
     if (frm.doc.cold_chain && !frm.doc.cold_chain_equipment_ready) {
       frappe.throw(__("Cold Chain Equipment must be ready for Cold Chain shipments."));
+    }
+    
+    // Validate status sequence (client-side check)
+    frm.trigger("validate_status_sequence");
+  },
+
+  validate_status_sequence: function (frm) {
+    // Client-side validation for status sequence
+    const stages = [
+      { field: "arrived", label: "Arrival Status" },
+      { field: "bank_authenticated", label: "Bank Authentication" },
+      { field: "restricted_release_status", label: "Restricted Release Status" },
+      { field: "customs_release_status", label: "Customs Release Status" },
+      { field: "received_at_warehouse", label: "Received at Warehouse" }
+    ];
+    
+    let previous_completed = true; // Acceptance is always first
+    
+    for (let i = 0; i < stages.length; i++) {
+      const stage = stages[i];
+      const current_value = frm.doc[stage.field];
+      
+      if (current_value && !previous_completed) {
+        const prev_label = i > 0 ? stages[i - 1].label : "Shipment Acceptance";
+        frappe.throw(__("Cannot complete '{0}' stage. Please complete '{1}' stage first.").format(stage.label, prev_label));
+      }
+      
+      previous_completed = current_value || false;
     }
   },
 
