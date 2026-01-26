@@ -59,6 +59,42 @@ frappe.ui.form.on('Importation Approval Request', {
                 frm.set_value('naming_series', 'EDA-APIMR-.YYYY.-.#####');
             }
         }
+        
+        // Clear items when request type changes to ensure proper filtration
+        if (frm.doc.items && frm.doc.items.length > 0) {
+            frm.clear_table('items');
+            frm.refresh_field('items');
+        }
+    },
+    
+    onload: function(frm) {
+        // Set up item filtration based on request type and pharmaceutical requirements
+        frm.fields_dict.items.grid.get_field('item_code').get_query = function() {
+            let filters = {};
+            
+            // Filter for pharmaceutical items as per HTML requirements
+            filters['custom_pharmaceutical_item'] = 1;
+            filters['disabled'] = 0;  // Only active items
+            
+            // Critical filtration based on pharmaceutical item configuration
+            if (frm.doc.request_type === 'Annual Importation (APIMR)') {
+                // For annual requests, only registered pharmaceutical items with complete data
+                // Based on HTML requirement: registered items need batch, manufacturing date, expiry date
+                filters['custom_registered'] = 1;
+                // Could add additional filters to ensure complete pharmaceutical data
+                // filters['custom_batch_no'] = ['!=', ''];
+                // filters['custom_manufacturing_date'] = ['!=', ''];
+                // filters['custom_expiry_date'] = ['!=', ''];
+            } else if (frm.doc.request_type === 'Special Importation (SPIMR)') {
+                // For special requests, allow both registered and non-registered pharmaceutical items
+                // This gives more flexibility for special/emergency importations
+                // No additional filters beyond pharmaceutical_item = 1
+            }
+            
+            return {
+                filters: filters
+            };
+        };
     },
     
     before_submit: function(frm) {
@@ -100,13 +136,64 @@ frappe.ui.form.on('Importation Approval Request Item', {
     item_code: function(frm, cdt, cdn) {
         let row = locals[cdt][cdn];
         if (row.item_code) {
-            // Fetch supplier information
-            frappe.db.get_value('Item', row.item_code, 'default_supplier')
-                .then(r => {
-                    if (r.message && r.message.default_supplier) {
-                        frappe.model.set_value(cdt, cdn, 'supplier', r.message.default_supplier);
+            // Validate pharmaceutical item requirements
+            frappe.call({
+                method: 'frappe.client.get',
+                args: {
+                    doctype: 'Item',
+                    name: row.item_code
+                },
+                callback: function(r) {
+                    if (r.message) {
+                        let item = r.message;
+                        
+                        // Check if it's a pharmaceutical item
+                        if (item.custom_pharmaceutical_item) {
+                            // Show pharmaceutical item information
+                            let info_msg = `<strong>Pharmaceutical Item Details:</strong><br>`;
+                            info_msg += `Strength: ${item.strength || 'Not specified'}<br>`;
+                            info_msg += `Batch No: ${item.custom_batch_no || 'Not specified'}<br>`;
+                            info_msg += `Manufacturing Date: ${item.custom_manufacturing_date || 'Not specified'}<br>`;
+                            info_msg += `Expiry Date: ${item.custom_expiry_date || 'Not specified'}<br>`;
+                            info_msg += `Registered: ${item.custom_registered ? 'Yes' : 'No'}<br>`;
+                            
+                            // Check for missing required fields
+                            if (item.custom_registered) {
+                                let missing = [];
+                                if (!item.custom_manufacturing_date) missing.push('Manufacturing Date');
+                                if (!item.custom_expiry_date) missing.push('Expiry Date');
+                                if (!item.custom_batch_no) missing.push('Batch No');
+                                if (!item.strength) missing.push('Strength');
+                                
+                                if (missing.length > 0) {
+                                    info_msg += `<br><span style="color: red;"><strong>Missing Required Fields:</strong> ${missing.join(', ')}</span>`;
+                                    frappe.msgprint({
+                                        title: 'Pharmaceutical Item Validation',
+                                        message: info_msg,
+                                        indicator: 'orange'
+                                    });
+                                } else {
+                                    // Check expiry date
+                                    if (item.custom_expiry_date && item.custom_expiry_date <= frappe.datetime.get_today()) {
+                                        info_msg += `<br><span style="color: red;"><strong>Warning:</strong> Item has expired!</span>`;
+                                        frappe.msgprint({
+                                            title: 'Pharmaceutical Item Validation',
+                                            message: info_msg,
+                                            indicator: 'red'
+                                        });
+                                    } else {
+                                        frappe.msgprint({
+                                            title: 'Pharmaceutical Item Information',
+                                            message: info_msg,
+                                            indicator: 'green'
+                                        });
+                                    }
+                                }
+                            }
+                        }
                     }
-                });
+                }
+            });
         }
     },
     
@@ -117,24 +204,46 @@ frappe.ui.form.on('Importation Approval Request Item', {
     approved_qty: function(frm, cdt, cdn) {
         let row = locals[cdt][cdn];
         
-        // Validate quantity editing restrictions based on status
-        // "لا يمكن الكتابة في الكميات الا في حاله الموافقة الجزئية"
+        // Critical validation: "لا يمكن الكتابة في الكميات الا في حاله الموافقة الجزئية"
         // (Can only edit quantities in partial approval case)
+        
+        // If document is submitted, prevent any quantity editing
+        if (frm.doc.docstatus === 1) {
+            frappe.msgprint(__('Cannot edit quantities in submitted document'));
+            frappe.model.set_value(cdt, cdn, 'approved_qty', row.approved_qty || 0);
+            return;
+        }
+        
+        // Enforce quantity editing restrictions based on approval status
         if (frm.doc.approval_status === 'Totally Approved') {
+            // In total approval, quantity transfers automatically
             frappe.model.set_value(cdt, cdn, 'approved_qty', row.requested_qty);
             frappe.msgprint(__('In total approval, quantity transfers automatically. Cannot edit approved quantity.'));
             return;
         }
         
         if (frm.doc.approval_status === 'Refused') {
+            // In refused status, quantity must be 0
             frappe.model.set_value(cdt, cdn, 'approved_qty', 0);
             frappe.msgprint(__('Cannot edit quantities for refused requests.'));
             return;
         }
         
         // Only allow editing in partial approval or pending status
-        if (frm.doc.approval_status && frm.doc.approval_status !== 'Partially Approved' && frm.doc.approval_status !== '') {
-            frappe.msgprint(__('Quantity editing is only allowed in partial approval cases.'));
+        if (frm.doc.approval_status && 
+            frm.doc.approval_status !== 'Partially Approved' && 
+            frm.doc.approval_status !== 'Pending' && 
+            frm.doc.approval_status !== '') {
+            frappe.msgprint(__('Quantity editing is only allowed in partial approval cases or pending status.'));
+            // Revert to previous value
+            frappe.model.set_value(cdt, cdn, 'approved_qty', row.approved_qty || 0);
+            return;
+        }
+        
+        // Validate approved quantity doesn't exceed requested quantity
+        if (row.approved_qty > row.requested_qty) {
+            frappe.msgprint(__('Approved quantity cannot exceed requested quantity'));
+            frappe.model.set_value(cdt, cdn, 'approved_qty', row.requested_qty);
             return;
         }
         

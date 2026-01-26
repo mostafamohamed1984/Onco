@@ -11,6 +11,7 @@
         "date",
         "column_break_basic",
         "status",
+        "requested_to",
         "year_plan",
         "section_break_modification",
         "is_modification",
@@ -64,6 +65,13 @@
             "label": "Status",
             "options": "\nPending\nTotally Approved\nPartially Approved\nRefused\nClosed - Modified\nClosed - Extended",
             "read_only": 1
+        },
+        {
+            "fieldname": "requested_to",
+            "fieldtype": "Link",
+            "label": "Requested To",
+            "options": "Customer",
+            "reqd": 1
         },
         {
             "depends_on": "eval:doc.request_type=='Annual Importation (APIMR)'",

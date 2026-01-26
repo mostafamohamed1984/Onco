@@ -103,6 +103,102 @@ frappe.ui.form.on('Importation Approvals', {
         }
     },
     
+    onload: function(frm) {
+        // Set up filtration for importation approval request based on type
+        frm.set_query('importation_approval_request', function() {
+            let filters = {
+                'docstatus': 1  // Only submitted requests
+            };
+            
+            // Filter based on approval type if already set
+            if (frm.doc.approval_type) {
+                if (frm.doc.approval_type === 'Special Importation (SPIMA)') {
+                    filters['request_type'] = 'Special Importation (SPIMR)';
+                } else if (frm.doc.approval_type === 'Annual Importation (APIMA)') {
+                    filters['request_type'] = 'Annual Importation (APIMR)';
+                }
+            }
+            
+            return {
+                filters: filters
+            };
+        });
+        
+        // Set up item filtration based on pharmaceutical configuration
+        if (frm.fields_dict.items && frm.fields_dict.items.grid) {
+            frm.fields_dict.items.grid.get_field('item_code').get_query = function() {
+                let filters = {};
+                
+                // Filter for pharmaceutical items as per HTML requirements
+                filters['custom_pharmaceutical_item'] = 1;
+                filters['disabled'] = 0;  // Only active items
+                
+                // Additional filtration based on approval type and pharmaceutical configuration
+                if (frm.doc.approval_type === 'Annual Importation (APIMA)') {
+                    // For annual approvals, only registered pharmaceutical items
+                    filters['custom_registered'] = 1;
+                } else if (frm.doc.approval_type === 'Special Importation (SPIMA)') {
+                    // For special approvals, allow all pharmaceutical items
+                }
+                
+                return {
+                    filters: filters
+                };
+            };
+        }
+        
+        // Make quantity fields read-only after submission
+        if (frm.doc.docstatus === 1) {
+            frm.fields_dict.items.grid.get_field('approved_qty').read_only = 1;
+            frm.refresh_field('items');
+        }
+    },
+    
+    approval_type: function(frm) {
+        // Auto-set naming series based on approval type
+        if (frm.doc.approval_type === 'Special Importation (SPIMA)') {
+            if (frm.doc.is_modification) {
+                frm.set_value('naming_series', 'EDA-SPIMA-MD-.YYYY.-.#####');
+            } else if (frm.doc.is_extension) {
+                frm.set_value('naming_series', 'EDA-SPIMA-EX-.YYYY.-.######');
+            } else {
+                frm.set_value('naming_series', 'EDA-SPIMA-.YYYY.-.#####');
+            }
+        } else if (frm.doc.approval_type === 'Annual Importation (APIMA)') {
+            if (frm.doc.is_modification) {
+                frm.set_value('naming_series', 'EDA-APIMA-MD-.YYYY.-.#####');
+            } else if (frm.doc.is_extension) {
+                frm.set_value('naming_series', 'EDA-APIMA-EX-.YYYY.-.######');
+            } else {
+                frm.set_value('naming_series', 'EDA-APIMA-.YYYY.-.#####');
+            }
+        }
+        
+        // Clear importation approval request when approval type changes
+        if (frm.doc.importation_approval_request) {
+            frm.set_value('importation_approval_request', '');
+            frm.clear_table('items');
+            frm.refresh_field('items');
+        }
+        
+        // Update filter for importation approval request
+        frm.set_query('importation_approval_request', function() {
+            let filters = {
+                'docstatus': 1  // Only submitted requests
+            };
+            
+            if (frm.doc.approval_type === 'Special Importation (SPIMA)') {
+                filters['request_type'] = 'Special Importation (SPIMR)';
+            } else if (frm.doc.approval_type === 'Annual Importation (APIMA)') {
+                filters['request_type'] = 'Annual Importation (APIMR)';
+            }
+            
+            return {
+                filters: filters
+            };
+        });
+    },
+    
     before_submit: function(frm) {
         // Validate that all items have approved quantities
         let has_approved_items = false;
@@ -163,21 +259,41 @@ frappe.ui.form.on('Importation Approvals', {
 });
 
 function create_purchase_order(frm) {
-    // Validate document status before creating Purchase Order
+    // Critical validation: Check document status before creating Purchase Order
     if (frm.doc.docstatus !== 1) {
         frappe.throw(__('Document must be submitted before creating Purchase Order'));
         return;
     }
     
-    // Check if document is closed
+    // Critical validation: Check if document is closed due to modification/extension
     if (frm.doc.docstatus === 2) {
-        frappe.throw(__('Cannot create Purchase Order from closed document. Use the latest version.'));
+        frappe.throw(__('Cannot create Purchase Order from closed document. This document has been modified or extended. Please use the latest version.'));
         return;
     }
     
-    frappe.model.open_mapped_doc({
-        method: "onco.onco.doctype.importation_approvals.importation_approvals.make_purchase_order",
-        frm: frm
+    // Check if this document has been superseded by a newer version
+    frappe.call({
+        method: 'frappe.client.get_list',
+        args: {
+            doctype: 'Importation Approvals',
+            filters: {
+                'original_document': frm.doc.name,
+                'docstatus': ['!=', 2]
+            },
+            fields: ['name', 'creation']
+        },
+        callback: function(r) {
+            if (r.message && r.message.length > 0) {
+                frappe.throw(__('Cannot create Purchase Order. This document has been superseded by newer versions. Please use the latest version.'));
+                return;
+            }
+            
+            // If all validations pass, create the Purchase Order
+            frappe.model.open_mapped_doc({
+                method: "onco.onco.doctype.importation_approvals.importation_approvals.make_purchase_order",
+                frm: frm
+            });
+        }
     });
 }
 

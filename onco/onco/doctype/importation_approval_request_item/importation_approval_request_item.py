@@ -7,6 +7,9 @@ from frappe.model.document import Document
 class ImportationApprovalRequestItem(Document):
     def validate(self):
         """Validate item data"""
+        # Validate pharmaceutical item requirements
+        self.validate_pharmaceutical_item()
+        
         # Validate that approved quantity doesn't exceed requested quantity
         if self.approved_qty and self.requested_qty and self.approved_qty > self.requested_qty:
             frappe.throw(f"Approved quantity ({self.approved_qty}) cannot exceed requested quantity ({self.requested_qty}) for item {self.item_code}")
@@ -20,3 +23,43 @@ class ImportationApprovalRequestItem(Document):
             self.status = "Partially Approved"
         else:
             self.status = "Pending"
+    
+    def validate_pharmaceutical_item(self):
+        """Validate pharmaceutical item requirements based on HTML documentation"""
+        if not self.item_code:
+            return
+            
+        # Get item details
+        item_doc = frappe.get_doc("Item", self.item_code)
+        
+        # Check if this is a pharmaceutical item
+        if hasattr(item_doc, 'custom_pharmaceutical_item') and item_doc.custom_pharmaceutical_item:
+            # For pharmaceutical items, additional validations are required
+            
+            # If it's a registered pharmaceutical item, ensure required fields are present
+            if hasattr(item_doc, 'custom_registered') and item_doc.custom_registered:
+                missing_fields = []
+                
+                # Check for required pharmaceutical fields based on HTML documentation
+                if not hasattr(item_doc, 'custom_manufacturing_date') or not item_doc.custom_manufacturing_date:
+                    missing_fields.append("Manufacturing Date")
+                
+                if not hasattr(item_doc, 'custom_expiry_date') or not item_doc.custom_expiry_date:
+                    missing_fields.append("Expiry Date")
+                
+                if not hasattr(item_doc, 'custom_batch_no') or not item_doc.custom_batch_no:
+                    missing_fields.append("Batch No")
+                
+                if not hasattr(item_doc, 'strength') or not item_doc.strength:
+                    missing_fields.append("Strength")
+                
+                if missing_fields:
+                    frappe.throw(f"Pharmaceutical item {self.item_code} is missing required fields: {', '.join(missing_fields)}. Please update the item master before using in importation cycle.")
+                
+                # Validate expiry date is in the future
+                if item_doc.custom_expiry_date and item_doc.custom_expiry_date <= frappe.utils.today():
+                    frappe.throw(f"Pharmaceutical item {self.item_code} has expired (Expiry Date: {item_doc.custom_expiry_date}). Cannot be used in importation cycle.")
+            
+            # Ensure pharmaceutical items have a default supplier
+            if not hasattr(item_doc, 'default_supplier') or not item_doc.default_supplier:
+                frappe.throw(f"Pharmaceutical item {self.item_code} must have a default supplier assigned. Please update the item master.")
