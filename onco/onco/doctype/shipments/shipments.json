@@ -10,11 +10,12 @@
         "section_break_agoz",
         "mode_of_shipping",
         "custom_importation_approval",
-        "purchase_invoice",
+        "custom_importation_approval",
         "custom_invoices",
         "packing_details_section",
         "packing_details",
-        "awb",
+        "awb_attach",
+        "swb_attach",
         "invoice",
         "certificate_of_analysis_",
         "certificate_of_origin",
@@ -29,6 +30,7 @@
         "awb_no",
         "swb_no",
         "awb_date",
+        "swb_date",
         "cold_chain_section",
         "cold_chain",
         "cold_chain_equipment_ready",
@@ -124,9 +126,16 @@
             "options": "Packing Detail"
         },
         {
-            "fieldname": "awb",
+            "fieldname": "awb_attach",
             "fieldtype": "Attach",
-            "label": "AWB"
+            "label": "AWB File",
+            "depends_on": "eval:doc.mode_of_shipping=='Air freight'"
+        },
+        {
+            "fieldname": "swb_attach",
+            "fieldtype": "Attach",
+            "label": "SWB File",
+            "depends_on": "eval:doc.mode_of_shipping=='Sea freight'"
         },
         {
             "fieldname": "invoice",
@@ -177,7 +186,14 @@
         {
             "fieldname": "awb_date",
             "fieldtype": "Date",
-            "label": "AWB Date"
+            "label": "AWB Date",
+            "depends_on": "eval:doc.mode_of_shipping=='Air freight'"
+        },
+        {
+            "fieldname": "swb_date",
+            "fieldtype": "Date",
+            "label": "SWB Date",
+            "depends_on": "eval:doc.mode_of_shipping=='Sea freight'"
         },
         {
             "fieldname": "cold_chain_section",
@@ -218,6 +234,17 @@
             "label": "ARRIVAIL DATE"
         },
         {
+            "fieldname": "3_bank_authantication_section",
+            "fieldtype": "Section Break",
+            "label": "3 Bank Authentication"
+        },
+        {
+            "default": "0",
+            "fieldname": "bank_authenticated",
+            "fieldtype": "Check",
+            "label": "Bank Authenticated"
+        },
+        {
             "fieldname": "date_of_submission_bank",
             "fieldtype": "Date",
             "label": "Date Of Submission (Bank)",
@@ -233,6 +260,12 @@
             "fieldname": "bank_document_reference",
             "fieldtype": "Data",
             "label": "Bank Document Reference",
+            "depends_on": "eval:doc.bank_authenticated==1"
+        },
+        {
+            "fieldname": "bank_document_attach",
+            "fieldtype": "Attach",
+            "label": "Bank Document Attachment",
             "depends_on": "eval:doc.bank_authenticated==1"
         },
         {
