@@ -38,7 +38,7 @@ frappe.ui.form.on('Importation Approval Request', {
                         __('Are you sure you want to refuse this request?'),
                         function() {
                             frappe.call({
-                                method: "onco.onco.doctype.importation_approval_request.importation_approval_request.approve_request",
+                                method: "onco.doctype.importation_approval_request.importation_approval_request.approve_request",
                                 args: {
                                     docname: frm.doc.name,
                                     approval_type: "Refused"
@@ -300,7 +300,7 @@ function calculate_totals(frm) {
 
 function create_importation_approval(frm) {
     frappe.model.open_mapped_doc({
-        method: "onco.onco.doctype.importation_approval_request.importation_approval_request.make_importation_approval",
+        method: "onco.doctype.importation_approval_request.importation_approval_request.make_importation_approval",
         frm: frm
     });
 }
@@ -348,7 +348,7 @@ function create_modification(frm) {
             });
             
             frappe.call({
-                method: "onco.onco.doctype.importation_approval_request.importation_approval_request.create_modification",
+                method: "onco.doctype.importation_approval_request.importation_approval_request.create_modification",
                 args: {
                     source_name: frm.doc.name,
                     modification_reason: values.modification_reason,
@@ -420,7 +420,7 @@ function create_extension(frm) {
             });
             
             frappe.call({
-                method: "onco.onco.doctype.importation_approval_request.importation_approval_request.create_extension",
+                method: "onco.doctype.importation_approval_request.importation_approval_request.create_extension",
                 args: {
                     source_name: frm.doc.name,
                     extension_reason: values.extension_reason,
@@ -490,7 +490,7 @@ function show_approval_dialog(frm) {
             }
             
             frappe.call({
-                method: "onco.onco.doctype.importation_approval_request.importation_approval_request.approve_request",
+                method: "onco.doctype.importation_approval_request.importation_approval_request.approve_request",
                 args: {
                     docname: frm.doc.name,
                     approval_type: values.approval_type
