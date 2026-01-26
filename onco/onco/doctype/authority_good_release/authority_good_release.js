@@ -1,82 +1,199 @@
-frappe.ui.form.on("Authority Good Release", {
-    shipment_no: function (frm) {
-        if (frm.doc.shipment_no) {
-            frappe.db.get_doc("Shipments", frm.doc.shipment_no)
-                .then(shipment => {
-                    frm.set_value("invoice_no", shipment.invoice_no);
-                    frm.set_value("batch_no", shipment.batch_no);
-                    frm.set_value("manufacturing_date_", shipment.manufacturing_date_);
-                    frm.set_value("expiry_date", shipment.expiry_date);
+// Copyright (c) 2026, Onco and contributors
+// For license information, please see license.txt
 
-                    frm.trigger("populate_items_from_report_or_invoice");
+frappe.ui.form.on('Authority Good Release', {
+    refresh: function(frm) {
+        // Add custom buttons
+        if (frm.doc.docstatus === 0) {
+            frm.add_custom_button(__('Fetch Items from Purchase Receipt Report'), function() {
+                fetch_items_from_purchase_receipt_report(frm);
+            });
+        }
+        
+        if (frm.doc.docstatus === 1 && !frm.doc.stock_entry_created) {
+            frm.add_custom_button(__('Create Stock Entry'), function() {
+                create_stock_entry(frm);
+            });
+        }
+        
+        // Show/hide fields based on release type
+        toggle_fields_based_on_release_type(frm);
+    },
+    
+    release_type: function(frm) {
+        toggle_fields_based_on_release_type(frm);
+        
+        // Clear subtype when release type changes
+        frm.set_value('lot_release_subtype', '');
+        frm.set_value('analysis_batch_subtype', '');
+    },
+    
+    shipment_no: function(frm) {
+        if (frm.doc.shipment_no) {
+            // Fetch invoice number from shipment
+            frappe.db.get_value('Shipments', frm.doc.shipment_no, 'custom_invoices')
+                .then(r => {
+                    if (r.message && r.message.custom_invoices) {
+                        // This would need to be enhanced to get the actual invoice number
+                        // from the shipment invoice child table
+                    }
                 });
         }
     },
-
-    populate_items_from_report_or_invoice: function (frm) {
-        if (!frm.doc.shipment_no) return;
-
-        // Try to fetch from Purchase Receipt Report first
-        frappe.db.get_value("Purchase Receipt Report", { custom_shipment_ref: frm.doc.shipment_no, docstatus: 1 }, "name")
-            .then(r => {
-                if (r.message && r.message.name) {
-                    frappe.db.get_doc("Purchase Receipt Report", r.message.name)
-                        .then(report => {
-                            frm.clear_table("items");
-                            report.items.forEach(item => {
-                                let row = frm.add_child("items");
-                                row.item_code = item.item_code || ""; // Need to ensure item_code exists in report
-                                row.item_name = item.item_name;
-                                row.batch_no = item.batch_no || frm.doc.batch_no;
-                                row.actual_qty = item.accepted_qty;
-                                row.released_qty = item.accepted_qty; // Default to full release
-                                row.release_status = "Released";
-                            });
-                            frm.refresh_field("items");
-                        });
-                } else {
-                    // Fallback to Purchase Invoice
-                    frm.trigger("populate_items_from_invoice");
-                }
-            });
-    },
-
-    populate_items_from_invoice: function (frm) {
-        // Fetch items from the primary purchase invoice of the shipment
-        frappe.db.get_value("Shipments", frm.doc.shipment_no, "purchase_invoice")
-            .then(r => {
-                if (r.message && r.message.purchase_invoice) {
-                    frappe.db.get_doc("Purchase Invoice", r.message.purchase_invoice)
-                        .then(invoice => {
-                            frm.clear_table("items");
-                            invoice.items.forEach(item => {
-                                let row = frm.add_child("items");
-                                row.item_code = item.item_code;
-                                row.item_name = item.item_name;
-                                row.batch_no = frm.doc.batch_no;
-                                row.actual_qty = item.qty;
-                                row.released_qty = item.qty;
-                                row.release_status = "Released";
-                            });
-                            frm.refresh_field("items");
-                        });
-                }
-            });
-    }
-});
-
-frappe.ui.form.on("Authority Good Release Item", {
-    released_qty: function (frm, cdt, cdn) {
-        let row = locals[cdt][cdn];
-        if (frm.doc.lot_release_subtype == "Lot Release Batch with Shortage Control Quantity") {
-            frappe.model.set_value(cdt, cdn, "shortage_control_qty", (row.actual_qty || 0) - (row.released_qty || 0));
-        } else {
-            frappe.model.set_value(cdt, cdn, "shortage_control_qty", 0);
+    
+    before_submit: function(frm) {
+        // Validate quantities
+        let has_items = false;
+        frm.doc.items.forEach(function(item) {
+            if (item.released_qty > 0) {
+                has_items = true;
+            }
+            
+            // Validate released quantity doesn't exceed actual quantity
+            if (item.released_qty > item.actual_qty) {
+                frappe.throw(__(`Released quantity for ${item.item_code} cannot exceed actual quantity`));
+            }
+        });
+        
+        if (!has_items) {
+            frappe.throw(__('Please add at least one item with released quantity'));
         }
-        frappe.model.set_value(cdt, cdn, "net_released_qty", row.released_qty || 0);
-    },
-    actual_qty: function (frm, cdt, cdn) {
-        let row = locals[cdt][cdn];
-        frm.script_manager.trigger("released_qty", cdt, cdn);
+        
+        // Validate sample quantities for analysis batch
+        if (frm.doc.release_type === 'Analysis Batch' && 
+            frm.doc.analysis_batch_subtype && 
+            frm.doc.analysis_batch_subtype.includes('Withdrawal Sample')) {
+            
+            let has_samples = false;
+            frm.doc.items.forEach(function(item) {
+                if (item.sample_qty > 0) {
+                    has_samples = true;
+                }
+            });
+            
+            if (!has_samples) {
+                frappe.throw(__('Sample quantities are required for Analysis Batch with Withdrawal Sample'));
+            }
+        }
     }
 });
+
+frappe.ui.form.on('Authority Good Release Item', {
+    released_qty: function(frm, cdt, cdn) {
+        calculate_net_released_qty(frm, cdt, cdn);
+        calculate_totals(frm);
+    },
+    
+    actual_qty: function(frm, cdt, cdn) {
+        calculate_net_released_qty(frm, cdt, cdn);
+        calculate_totals(frm);
+    },
+    
+    shortage_control_qty: function(frm, cdt, cdn) {
+        calculate_net_released_qty(frm, cdt, cdn);
+        calculate_totals(frm);
+    },
+    
+    sample_qty: function(frm) {
+        calculate_totals(frm);
+    },
+    
+    items_remove: function(frm) {
+        calculate_totals(frm);
+    }
+});
+
+function toggle_fields_based_on_release_type(frm) {
+    if (frm.doc.release_type === 'Lot Release Batch') {
+        frm.set_df_property('lot_release_subtype', 'hidden', 0);
+        frm.set_df_property('analysis_batch_subtype', 'hidden', 1);
+    } else if (frm.doc.release_type === 'Analysis Batch') {
+        frm.set_df_property('lot_release_subtype', 'hidden', 1);
+        frm.set_df_property('analysis_batch_subtype', 'hidden', 0);
+    } else {
+        frm.set_df_property('lot_release_subtype', 'hidden', 1);
+        frm.set_df_property('analysis_batch_subtype', 'hidden', 1);
+    }
+}
+
+function calculate_net_released_qty(frm, cdt, cdn) {
+    let row = locals[cdt][cdn];
+    let net_released = (row.released_qty || 0) - (row.shortage_control_qty || 0);
+    frappe.model.set_value(cdt, cdn, 'net_released_qty', net_released);
+}
+
+function calculate_totals(frm) {
+    let total_requested = 0;
+    let total_released = 0;
+    let total_actual = 0;
+    let total_net_released = 0;
+    let total_shortage_control = 0;
+    let total_sample = 0;
+    
+    frm.doc.items.forEach(function(item) {
+        total_requested += item.requested_qty || 0;
+        total_released += item.released_qty || 0;
+        total_actual += item.actual_qty || 0;
+        total_net_released += item.net_released_qty || 0;
+        total_shortage_control += item.shortage_control_qty || 0;
+        total_sample += item.sample_qty || 0;
+    });
+    
+    frm.set_value('total_requested_qty', total_requested);
+    frm.set_value('total_released_qty', total_released);
+    frm.set_value('total_actual_qty', total_actual);
+    frm.set_value('total_net_released_qty', total_net_released);
+    frm.set_value('total_shortage_control_qty', total_shortage_control);
+    frm.set_value('total_sample_qty', total_sample);
+}
+
+function fetch_items_from_purchase_receipt_report(frm) {
+    if (!frm.doc.shipment_no) {
+        frappe.throw(__('Please select a Shipment first'));
+    }
+    
+    frappe.call({
+        method: "onco.onco.doctype.authority_good_release.authority_good_release.fetch_items_from_purchase_receipt_report",
+        args: {
+            shipment_no: frm.doc.shipment_no
+        },
+        callback: function(r) {
+            if (r.message) {
+                // Clear existing items
+                frm.clear_table('items');
+                
+                // Add items from Purchase Receipt Report
+                r.message.forEach(function(item) {
+                    let child = frm.add_child('items');
+                    child.item_code = item.item_code;
+                    child.item_name = item.item_name;
+                    child.batch_no = item.batch_no;
+                    child.manufacturing_date = item.manufacturing_date;
+                    child.expiry_date = item.expiry_date;
+                    child.requested_qty = item.requested_qty;
+                    child.actual_qty = item.actual_qty;
+                    child.released_qty = item.actual_qty; // Default to actual qty
+                });
+                
+                frm.refresh_field('items');
+                calculate_totals(frm);
+                frappe.msgprint(__('Items fetched successfully'));
+            }
+        }
+    });
+}
+
+function create_stock_entry(frm) {
+    frappe.call({
+        method: "onco.onco.doctype.authority_good_release.authority_good_release.create_stock_entry",
+        args: {
+            authority_good_release: frm.doc.name
+        },
+        callback: function(r) {
+            if (r.message) {
+                frm.reload_doc();
+                frappe.msgprint(__(`Stock Entry ${r.message} created successfully`));
+            }
+        }
+    });
+}

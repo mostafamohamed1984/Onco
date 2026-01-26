@@ -17,11 +17,27 @@
         "manufacturing_date_",
         "expiry_date",
         "release_date",
+        "section_break_quantities",
+        "total_requested_qty",
+        "total_released_qty",
+        "total_actual_qty",
+        "column_break_quantities",
+        "total_net_released_qty",
+        "total_shortage_control_qty",
+        "total_sample_qty",
+        "section_break_warehouses",
+        "warehouse_from",
+        "warehouse_to",
+        "column_break_warehouses",
+        "sample_warehouse",
         "section_break_samples",
         "no_of_samples",
         "status",
         "items_section",
         "items",
+        "section_break_stock_transfer",
+        "create_stock_entry",
+        "stock_entry_created",
         "amended_from"
     ],
     "fields": [
@@ -92,6 +108,83 @@
             "label": "Release Date"
         },
         {
+            "fieldname": "section_break_quantities",
+            "fieldtype": "Section Break",
+            "label": "Quantity Summary"
+        },
+        {
+            "fieldname": "total_requested_qty",
+            "fieldtype": "Float",
+            "label": "Total Requested Qty",
+            "read_only": 1
+        },
+        {
+            "fieldname": "total_released_qty",
+            "fieldtype": "Float",
+            "label": "Total Released Qty",
+            "read_only": 1
+        },
+        {
+            "fieldname": "total_actual_qty",
+            "fieldtype": "Float",
+            "label": "Total Actual Qty",
+            "read_only": 1
+        },
+        {
+            "fieldname": "column_break_quantities",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "total_net_released_qty",
+            "fieldtype": "Float",
+            "label": "Total Net Released Qty",
+            "read_only": 1
+        },
+        {
+            "fieldname": "total_shortage_control_qty",
+            "fieldtype": "Float",
+            "label": "Total Shortage Control Qty",
+            "read_only": 1
+        },
+        {
+            "fieldname": "total_sample_qty",
+            "fieldtype": "Float",
+            "label": "Total Sample Qty",
+            "read_only": 1
+        },
+        {
+            "fieldname": "section_break_warehouses",
+            "fieldtype": "Section Break",
+            "label": "Warehouse Transfer"
+        },
+        {
+            "default": "Under Release - O",
+            "fieldname": "warehouse_from",
+            "fieldtype": "Link",
+            "label": "From Warehouse",
+            "options": "Warehouse",
+            "reqd": 1
+        },
+        {
+            "default": "Stores - O",
+            "fieldname": "warehouse_to",
+            "fieldtype": "Link",
+            "label": "To Warehouse",
+            "options": "Warehouse",
+            "reqd": 1
+        },
+        {
+            "fieldname": "column_break_warehouses",
+            "fieldtype": "Column Break"
+        },
+        {
+            "default": "Sample Warehouse - O",
+            "fieldname": "sample_warehouse",
+            "fieldtype": "Link",
+            "label": "Sample Warehouse",
+            "options": "Warehouse"
+        },
+        {
             "fieldname": "section_break_samples",
             "fieldtype": "Section Break",
             "label": "Sample Management"
@@ -119,6 +212,24 @@
             "fieldtype": "Table",
             "label": "Items",
             "options": "Authority Good Release Item"
+        },
+        {
+            "fieldname": "section_break_stock_transfer",
+            "fieldtype": "Section Break",
+            "label": "Stock Transfer"
+        },
+        {
+            "default": 0,
+            "fieldname": "create_stock_entry",
+            "fieldtype": "Check",
+            "label": "Create Stock Entry on Submit"
+        },
+        {
+            "fieldname": "stock_entry_created",
+            "fieldtype": "Link",
+            "label": "Stock Entry Created",
+            "options": "Stock Entry",
+            "read_only": 1
         },
         {
             "fieldname": "amended_from",
