@@ -136,17 +136,36 @@
         {
             "fieldname": "invoice",
             "fieldtype": "Attach",
-            "label": "Invoice"
+            "label": "Invoice",
+            "reqd": 1
         },
         {
             "fieldname": "packing_list",
             "fieldtype": "Attach",
-            "label": "Packing List"
+            "label": "Packing List",
+            "reqd": 1
+        },
+        {
+            "fieldname": "certificate_of_analysis_",
+            "fieldtype": "Attach",
+            "label": "Certificate of analysis",
+            "reqd": 1
         },
         {
             "fieldname": "certificate_of_origin",
             "fieldtype": "Attach",
-            "label": "Certificate of origin"
+            "label": "Certificate of origin",
+            "reqd": 1
+        },
+        {
+            "fieldname": "certificate_of_euro_1_",
+            "fieldtype": "Attach",
+            "label": "Certificate of EURO 1"
+        },
+        {
+            "fieldname": "certificate_of_insurance_",
+            "fieldtype": "Attach",
+            "label": "Certificate of insurance"
         },
         {
             "fieldname": "column_break_lmek",
@@ -396,34 +415,6 @@
             "label": "Is Internal Supplier"
         },
         {
-            "fieldname": "invoice",
-            "fieldtype": "Attach",
-            "label": "Invoice",
-            "reqd": 1
-        },
-        {
-            "fieldname": "packing_list",
-            "fieldtype": "Attach",
-            "label": "Packing List",
-            "reqd": 1
-        },
-        {
-            "fieldname": "certificate_of_origin",
-            "fieldtype": "Attach",
-            "label": "Certificate of origin",
-            "reqd": 1
-        },
-        {
-            "fieldname": "certificate_of_euro_1_",
-            "fieldtype": "Attach",
-            "label": "Certificate of EURO 1"
-        },
-        {
-            "fieldname": "certificate_of_insurance_",
-            "fieldtype": "Attach",
-            "label": "Certificate of insurance"
-        },
-        {
             "fieldname": "column_break_qoxi",
             "fieldtype": "Column Break"
         },
@@ -431,17 +422,6 @@
             "fieldname": "remarks",
             "fieldtype": "Text",
             "label": "Remarks"
-        },
-        {
-            "fieldname": "certificate_of_analysis_",
-            "fieldtype": "Attach",
-            "label": "Certificate of analysis",
-            "reqd": 1
-        },
-        {
-            "fieldname": "manufacturing_date_",
-            "fieldtype": "Date",
-            "label": "Manufacturing date"
         },
         {
             "default": "0",
