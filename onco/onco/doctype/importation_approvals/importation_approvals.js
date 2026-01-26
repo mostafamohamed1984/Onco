@@ -84,22 +84,32 @@ frappe.ui.form.on('Importation Approvals', {
                         // Clear existing items and add from request
                         frm.clear_table('items');
                         
-                        request_doc.items.forEach(function(item) {
-                            // Add all items from request, not just approved ones
-                            let child = frm.add_child('items');
-                            child.item_code = item.item_code;
-                            child.item_name = item.item_name;
-                            child.supplier = item.supplier;
-                            child.requested_qty = item.requested_qty;
-                            // Auto-populate approved_qty with requested_qty as per HTML requirement
-                            child.approved_qty = item.requested_qty;
-                            child.status = 'Approved';
-                        });
-                        
-                        frm.refresh_field('items');
+                        if (request_doc.items && request_doc.items.length > 0) {
+                            request_doc.items.forEach(function(item) {
+                                // Add all items from request, not just approved ones
+                                let child = frm.add_child('items');
+                                child.item_code = item.item_code;
+                                child.item_name = item.item_name;
+                                child.supplier = item.supplier;
+                                child.requested_qty = item.requested_qty;
+                                // Set approved_qty to requested_qty as per HTML requirement
+                                // "QUANTIY: AUTIMATICALLY FROM PERVIOUS STEP"
+                                child.approved_qty = item.requested_qty;
+                                child.status = 'Approved';
+                            });
+                            
+                            frm.refresh_field('items');
+                            frappe.msgprint(__('Items loaded successfully from Importation Approval Request'));
+                        } else {
+                            frappe.msgprint(__('No items found in the selected Importation Approval Request'));
+                        }
                     }
                 }
             });
+        } else {
+            // Clear items when request is cleared
+            frm.clear_table('items');
+            frm.refresh_field('items');
         }
     },
     
@@ -200,16 +210,21 @@ frappe.ui.form.on('Importation Approvals', {
     },
     
     before_submit: function(frm) {
-        // Validate that all items have approved quantities
-        let has_approved_items = false;
+        // Validate that items table is not empty
+        if (!frm.doc.items || frm.doc.items.length === 0) {
+            frappe.throw(__('Items table cannot be empty. Please ensure items are loaded from the Importation Approval Request.'));
+        }
+        
+        // Validate that all items have approved quantities (can be 0 for refused items)
+        let has_valid_items = false;
         frm.doc.items.forEach(function(item) {
-            if (item.approved_qty > 0) {
-                has_approved_items = true;
+            if (item.approved_qty >= 0) {  // Allow 0 for refused items
+                has_valid_items = true;
             }
         });
         
-        if (!has_approved_items) {
-            frappe.throw(__('Please ensure at least one item has approved quantity'));
+        if (!has_valid_items) {
+            frappe.throw(__('Please ensure all items have valid approved quantities (can be 0 for refused items)'));
         }
         
         // Validate valid date is in the future

@@ -66,26 +66,12 @@ def make_importation_approval(source_name, target_doc=None):
         elif source.request_type == 'Annual Importation (APIMR)':
             target.approval_type = 'Annual Importation (APIMA)'
             target.naming_series = 'EDA-APIMA-.YYYY.-.#####'
-        
-        # Ensure we have items - if no items with approved qty, include all items
-        if not target.items:
-            # Get source document and add all items
-            source_doc = frappe.get_doc("Importation Approval Request", source_name)
-            for source_item in source_doc.items:
-                target.append("items", {
-                    "item_code": source_item.item_code,
-                    "item_name": source_item.item_name,
-                    "supplier": source_item.supplier,
-                    "requested_qty": source_item.requested_qty,
-                    "approved_qty": source_item.approved_qty or source_item.requested_qty,
-                    "status": "Approved"
-                })
     
     def update_item(source, target, source_parent):
-        # Always include items, set approved qty to requested qty if not set
+        # Map all item fields and set approved_qty to requested_qty as per HTML requirement
         target.requested_qty = source.requested_qty
-        target.approved_qty = source.approved_qty or source.requested_qty
-        target.status = source.status or "Approved"
+        target.approved_qty = source.requested_qty  # "QUANTIY: AUTIMATICALLY FROM PERVIOUS STEP"
+        target.status = "Approved"
     
     doclist = get_mapped_doc("Importation Approval Request", source_name, {
         "Importation Approval Request": {

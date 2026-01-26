@@ -43,6 +43,7 @@
         {
             "fieldname": "request_type",
             "fieldtype": "Select",
+            "in_list_view": 1,
             "label": "Request Type",
             "options": "\nSpecial Importation (SPIMR)\nAnnual Importation (APIMR)",
             "reqd": 1
@@ -51,6 +52,7 @@
             "default": "Today",
             "fieldname": "date",
             "fieldtype": "Date",
+            "in_list_view": 1,
             "label": "Date",
             "reqd": 1
         },
@@ -62,6 +64,7 @@
             "default": "Pending",
             "fieldname": "status",
             "fieldtype": "Select",
+            "in_list_view": 1,
             "label": "Status",
             "options": "\nPending\nTotally Approved\nPartially Approved\nRefused\nClosed - Modified\nClosed - Extended",
             "read_only": 1
@@ -69,6 +72,7 @@
         {
             "fieldname": "requested_to",
             "fieldtype": "Link",
+            "in_list_view": 1,
             "label": "Requested To",
             "options": "Customer",
             "reqd": 1

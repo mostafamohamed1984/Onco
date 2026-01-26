@@ -6,28 +6,44 @@ from frappe.model.document import Document
 
 class ImportationApprovals(Document):
     def validate(self):
-        self.fetch_request_data()
+        self.validate_items_table()
         self.validate_approval_quantities()
+    
+    def validate_items_table(self):
+        """Ensure items table is not empty and populated from request if needed"""
+        if not self.items and self.importation_approval_request:
+            # Auto-populate items from the linked request
+            self.fetch_request_data()
+        
+        if not self.items:
+            if self.importation_approval_request:
+                frappe.throw("No items found in the linked Importation Approval Request. Please check the request document.")
+            else:
+                frappe.throw("Items table cannot be empty. Please link an Importation Approval Request.")
     
     def fetch_request_data(self):
         """Fetch data from linked Importation Approval Request"""
-        if self.importation_approval_request:
-            request_doc = frappe.get_doc("Importation Approval Request", self.importation_approval_request)
+        if not self.importation_approval_request:
+            return
             
-            # Clear existing items
-            self.items = []
-            
-            # Add items from request
-            for request_item in request_doc.items:
-                if request_item.approved_qty > 0:  # Only add approved items
-                    self.append("items", {
-                        "item_code": request_item.item_code,
-                        "item_name": request_item.item_name,
-                        "supplier": request_item.supplier,
-                        "requested_qty": request_item.requested_qty,
-                        "approved_qty": request_item.approved_qty,
-                        "status": request_item.status
-                    })
+        request_doc = frappe.get_doc("Importation Approval Request", self.importation_approval_request)
+        
+        if not request_doc.items:
+            return
+        
+        # Clear existing items and add all items from request
+        self.items = []
+        
+        for request_item in request_doc.items:
+            self.append("items", {
+                "item_code": request_item.item_code,
+                "item_name": request_item.item_name,
+                "supplier": request_item.supplier,
+                "requested_qty": request_item.requested_qty,
+                # As per HTML: "QUANTIY: AUTIMATICALLY FROM PERVIOUS STEP"
+                "approved_qty": request_item.requested_qty,
+                "status": "Approved"
+            })
     
     def validate_approval_quantities(self):
         """Validate that approval quantities match the request"""
@@ -85,23 +101,26 @@ class ImportationApprovals(Document):
         
         return True
     
-    @frappe.whitelist()
-    def create_purchase_order(self):
-        """Create Purchase Order from this approval"""
-        # This will be implemented in Phase 3
-        frappe.msgprint("Purchase Order creation will be implemented in the next phase")
-    
-    @frappe.whitelist()
-    def create_modification(self):
-        """Create modification of this approval"""
-        # This will be implemented in Phase 3
-        frappe.msgprint("Modification creation will be implemented in the next phase")
-    
-    @frappe.whitelist()
-    def create_extension(self):
-        """Create extension of this approval"""
-        # This will be implemented in Phase 3
-        frappe.msgprint("Extension creation will be implemented in the next phase")
+    def validate_approval_quantities(self):
+        """Validate that approval quantities match the request"""
+        if not self.importation_approval_request:
+            return
+            
+        request_doc = frappe.get_doc("Importation Approval Request", self.importation_approval_request)
+        
+        for item in self.items:
+            # Find corresponding item in request
+            request_item = None
+            for req_item in request_doc.items:
+                if req_item.item_code == item.item_code:
+                    request_item = req_item
+                    break
+            
+            if not request_item:
+                frappe.throw(f"Item {item.item_code} not found in the original request")
+            
+            if item.approved_qty > request_item.requested_qty:
+                frappe.throw(f"Approved quantity for {item.item_code} cannot exceed requested quantity")
 
 @frappe.whitelist()
 def make_purchase_order(source_name, target_doc=None):
