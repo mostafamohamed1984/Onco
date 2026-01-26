@@ -298,72 +298,138 @@ function create_importation_approval(frm) {
 }
 
 function create_modification(frm) {
-    frappe.prompt([
-        {
-            label: 'Modification Reason',
-            fieldname: 'modification_reason',
-            fieldtype: 'Select',
-            options: '\nError\nChange data and conditions',
-            reqd: 1
-        },
-        {
-            label: 'Requested Modification',
-            fieldname: 'requested_modification',
-            fieldtype: 'Text',
-            reqd: 1
-        }
-    ], function(values) {
-        frappe.call({
-            method: "onco.onco.doctype.importation_approval_request.importation_approval_request.create_modification",
-            args: {
-                source_name: frm.doc.name,
-                modification_reason: values.modification_reason,
-                requested_modification: values.requested_modification
+    // Show current items for reference
+    let items_html = '<table class="table table-bordered"><thead><tr><th>Item</th><th>Current Qty</th><th>New Qty</th></tr></thead><tbody>';
+    frm.doc.items.forEach(function(item) {
+        items_html += `<tr><td>${item.item_code}</td><td>${item.requested_qty}</td><td><input type="number" class="form-control" data-item="${item.item_code}" value="${item.requested_qty}"></td></tr>`;
+    });
+    items_html += '</tbody></table>';
+    
+    let d = new frappe.ui.Dialog({
+        title: __('Create Modification'),
+        fields: [
+            {
+                label: 'Modification Reason',
+                fieldname: 'modification_reason',
+                fieldtype: 'Select',
+                options: '\nError\nChange data and conditions',
+                reqd: 1
             },
-            callback: function(r) {
-                if (r.message) {
-                    frappe.set_route('Form', 'Importation Approval Request', r.message);
-                }
+            {
+                label: 'Requested Modification Details',
+                fieldname: 'requested_modification',
+                fieldtype: 'Small Text',
+                reqd: 1,
+                description: 'Describe what needs to be modified'
+            },
+            {
+                label: 'Modify Item Quantities',
+                fieldname: 'items_section',
+                fieldtype: 'HTML',
+                options: items_html
             }
-        });
-    }, __('Create Modification'), __('Create'));
+        ],
+        primary_action_label: __('Create Modification'),
+        primary_action: function(values) {
+            // Collect modified quantities
+            let items_to_modify = {};
+            d.$wrapper.find('input[data-item]').each(function() {
+                let item_code = $(this).data('item');
+                let new_qty = parseFloat($(this).val()) || 0;
+                items_to_modify[item_code] = { new_qty: new_qty };
+            });
+            
+            frappe.call({
+                method: "onco.onco.doctype.importation_approval_request.importation_approval_request.create_modification",
+                args: {
+                    source_name: frm.doc.name,
+                    modification_reason: values.modification_reason,
+                    requested_modification: values.requested_modification,
+                    items_to_modify: JSON.stringify(items_to_modify)
+                },
+                callback: function(r) {
+                    if (r.message) {
+                        d.hide();
+                        frappe.msgprint(__('Modification created successfully'));
+                        frappe.set_route('Form', 'Importation Approval Request', r.message);
+                    }
+                }
+            });
+        }
+    });
+    
+    d.show();
 }
 
 function create_extension(frm) {
-    frappe.prompt([
-        {
-            label: 'Extension Reason',
-            fieldname: 'extension_reason',
-            fieldtype: 'Select',
-            options: '\nValidation\nOther',
-            reqd: 1
-        },
-        {
-            label: 'Extension Details',
-            fieldname: 'extension_details',
-            fieldtype: 'Text',
-            reqd: 1
-        },
-        {
-            label: 'New Validation Date',
-            fieldname: 'new_validation_date',
-            fieldtype: 'Date',
-            reqd: 1
-        }
-    ], function(values) {
-        frappe.call({
-            method: "onco.onco.doctype.importation_approval_request.importation_approval_request.create_extension",
-            args: {
-                source_name: frm.doc.name,
-                extension_reason: values.extension_reason,
-                extension_details: values.extension_details,
-                new_validation_date: values.new_validation_date
+    // Show current items for reference
+    let items_html = '<table class="table table-bordered"><thead><tr><th>Item</th><th>Current Qty</th><th>Additional Qty</th></tr></thead><tbody>';
+    frm.doc.items.forEach(function(item) {
+        items_html += `<tr><td>${item.item_code}</td><td>${item.requested_qty}</td><td><input type="number" class="form-control" data-item="${item.item_code}" value="0" min="0"></td></tr>`;
+    });
+    items_html += '</tbody></table>';
+    
+    let d = new frappe.ui.Dialog({
+        title: __('Create Extension'),
+        fields: [
+            {
+                label: 'Extension Reason',
+                fieldname: 'extension_reason',
+                fieldtype: 'Select',
+                options: '\nValidation\nOther',
+                reqd: 1
             },
-            callback: function(r) {
-                if (r.message) {
-                    frappe.set_route('Form', 'Importation Approval Request', r.message);
-                }
+            {
+                label: 'Extension Details',
+                fieldname: 'extension_details',
+                fieldtype: 'Small Text',
+                reqd: 1,
+                description: 'Describe why extension is needed'
+            },
+            {
+                label: 'New Validation Date',
+                fieldname: 'new_validation_date',
+                fieldtype: 'Date',
+                description: 'Optional: Set new validation date'
+            },
+            {
+                label: 'Add Additional Quantities',
+                fieldname: 'items_section',
+                fieldtype: 'HTML',
+                options: items_html
             }
-        });
-    }, __('Create Extension'), __('Create'));
+        ],
+        primary_action_label: __('Create Extension'),
+        primary_action: function(values) {
+            // Collect additional quantities
+            let additional_qty = {};
+            d.$wrapper.find('input[data-item]').each(function() {
+                let item_code = $(this).data('item');
+                let add_qty = parseFloat($(this).val()) || 0;
+                if (add_qty > 0) {
+                    additional_qty[item_code] = { additional_qty: add_qty };
+                }
+            });
+            
+            frappe.call({
+                method: "onco.onco.doctype.importation_approval_request.importation_approval_request.create_extension",
+                args: {
+                    source_name: frm.doc.name,
+                    extension_reason: values.extension_reason,
+                    extension_details: values.extension_details,
+                    new_validation_date: values.new_validation_date,
+                    additional_qty: JSON.stringify(additional_qty)
+                },
+                callback: function(r) {
+                    if (r.message) {
+                        d.hide();
+                        frappe.msgprint(__('Extension created successfully'));
+                        frappe.set_route('Form', 'Importation Approval Request', r.message);
+                    }
+                }
+            });
+        }
+    });
+    
+    d.show();
 }

@@ -8,7 +8,6 @@
         "item_name",
         "supplier",
         "column_break_item",
-        "requested_to",
         "requested_qty",
         "approved_qty",
         "status"
@@ -44,14 +43,6 @@
             "fieldtype": "Column Break"
         },
         {
-            "fieldname": "requested_to",
-            "fieldtype": "Link",
-            "in_list_view": 1,
-            "label": "Requested To",
-            "options": "Customer",
-            "reqd": 1
-        },
-        {
             "fieldname": "requested_qty",
             "fieldtype": "Float",
             "in_list_view": 1,
@@ -69,8 +60,9 @@
             "fieldname": "status",
             "fieldtype": "Select",
             "in_list_view": 1,
-            "label": "Status",
-            "options": "\nPending\nTotally Approved\nPartially Approved\nRefused"
+            "label": "Item Status",
+            "options": "\nPending\nTotally Approved\nPartially Approved\nRefused",
+            "read_only": 1
         }
     ],
     "index_web_pages_for_search": 1,

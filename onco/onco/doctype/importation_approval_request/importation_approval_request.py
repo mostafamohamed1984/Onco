@@ -33,18 +33,21 @@ class ImportationApprovalRequest(Document):
     
     def on_submit(self):
         """Update status based on approval quantities"""
-        self.update_approval_status()
+        # Only update status if approval_status is set (meaning it's been reviewed)
+        if self.approval_status:
+            self.update_approval_status()
     
     def update_approval_status(self):
-        """Update status based on approved vs requested quantities"""
-        if self.total_approved_qty == 0:
-            self.status = "Refused"
-        elif self.total_approved_qty == self.total_requested_qty:
+        """Update status based on approval_status field"""
+        # Use the approval_status field set by the user
+        if self.approval_status == "Totally Approved":
             self.status = "Totally Approved"
-        else:
+        elif self.approval_status == "Partially Approved":
             self.status = "Partially Approved"
+        elif self.approval_status == "Refused":
+            self.status = "Refused"
         
-        # Update item statuses
+        # Update item statuses based on quantities
         for item in self.items:
             if item.approved_qty == 0:
                 item.status = "Refused"
@@ -89,8 +92,17 @@ def make_importation_approval(source_name, target_doc=None):
     return doclist
 
 @frappe.whitelist()
-def create_modification(source_name, modification_reason, requested_modification):
-    """Create modification of Importation Approval Request"""
+def create_modification(source_name, modification_reason, requested_modification, items_to_modify=None):
+    """Create modification of Importation Approval Request
+    
+    Args:
+        source_name: Original document name
+        modification_reason: Reason for modification (Error or Change data and conditions)
+        requested_modification: Description of what needs to be modified
+        items_to_modify: Optional JSON string of items with their new quantities
+    """
+    import json
+    
     source_doc = frappe.get_doc("Importation Approval Request", source_name)
     
     # Create new request with MD naming series
@@ -113,10 +125,19 @@ def create_modification(source_name, modification_reason, requested_modification
     new_doc.approval_date = ""
     new_doc.total_approved_qty = 0
     
-    # Reset item approval data
-    for item in new_doc.items:
-        item.approved_qty = 0
-        item.status = "Pending"
+    # If specific items to modify are provided, update them
+    if items_to_modify:
+        items_data = json.loads(items_to_modify) if isinstance(items_to_modify, str) else items_to_modify
+        for item in new_doc.items:
+            if item.item_code in items_data:
+                item.requested_qty = items_data[item.item_code].get('new_qty', item.requested_qty)
+            item.approved_qty = 0
+            item.status = "Pending"
+    else:
+        # Reset item approval data
+        for item in new_doc.items:
+            item.approved_qty = 0
+            item.status = "Pending"
     
     new_doc.insert()
     
@@ -126,8 +147,18 @@ def create_modification(source_name, modification_reason, requested_modification
     return new_doc.name
 
 @frappe.whitelist()
-def create_extension(source_name, extension_reason, extension_details, new_validation_date):
-    """Create extension of Importation Approval Request"""
+def create_extension(source_name, extension_reason, extension_details, new_validation_date=None, additional_qty=None):
+    """Create extension of Importation Approval Request
+    
+    Args:
+        source_name: Original document name
+        extension_reason: Reason for extension (Validation or Other)
+        extension_details: Description of extension
+        new_validation_date: Optional new validation date
+        additional_qty: Optional JSON string of items with additional quantities
+    """
+    import json
+    
     source_doc = frappe.get_doc("Importation Approval Request", source_name)
     
     # Create new request with EX naming series
@@ -150,10 +181,20 @@ def create_extension(source_name, extension_reason, extension_details, new_valid
     new_doc.approval_date = ""
     new_doc.total_approved_qty = 0
     
-    # Reset item approval data
-    for item in new_doc.items:
-        item.approved_qty = 0
-        item.status = "Pending"
+    # If additional quantities are provided, add them to existing quantities
+    if additional_qty:
+        qty_data = json.loads(additional_qty) if isinstance(additional_qty, str) else additional_qty
+        for item in new_doc.items:
+            if item.item_code in qty_data:
+                additional = qty_data[item.item_code].get('additional_qty', 0)
+                item.requested_qty = item.requested_qty + additional
+            item.approved_qty = 0
+            item.status = "Pending"
+    else:
+        # Reset item approval data
+        for item in new_doc.items:
+            item.approved_qty = 0
+            item.status = "Pending"
     
     new_doc.insert()
     
