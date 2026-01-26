@@ -1,6 +1,20 @@
 // Copyright (c) 2026, Onco and contributors
 // For license information, please see license.txt
 
+// List View Settings
+frappe.listview_settings['Importation Approvals'] = {
+    add_fields: ["approval_type", "date", "valid_date", "docstatus"],
+    get_indicator: function(doc) {
+        if (doc.docstatus === 1) {
+            return [__("Submitted"), "green", "docstatus,=,1"];
+        } else if (doc.docstatus === 2) {
+            return [__("Cancelled"), "red", "docstatus,=,2"];
+        } else {
+            return [__("Draft"), "gray", "docstatus,=,0"];
+        }
+    }
+};
+
 frappe.ui.form.on('Importation Approvals', {
     refresh: function(frm) {
         // Add custom buttons based on document status

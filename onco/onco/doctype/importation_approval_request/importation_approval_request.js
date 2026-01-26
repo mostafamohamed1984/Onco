@@ -1,6 +1,28 @@
 // Copyright (c) 2026, Onco and contributors
 // For license information, please see license.txt
 
+// List View Settings
+frappe.listview_settings['Importation Approval Request'] = {
+    add_fields: ["request_type", "status", "date", "docstatus"],
+    get_indicator: function(doc) {
+        if (doc.status === "Totally Approved") {
+            return [__("Totally Approved"), "green", "status,=,Totally Approved"];
+        } else if (doc.status === "Partially Approved") {
+            return [__("Partially Approved"), "orange", "status,=,Partially Approved"];
+        } else if (doc.status === "Refused") {
+            return [__("Refused"), "red", "status,=,Refused"];
+        } else if (doc.status === "Pending") {
+            return [__("Pending"), "blue", "status,=,Pending"];
+        } else if (doc.status === "Closed - Modified") {
+            return [__("Closed - Modified"), "gray", "status,=,Closed - Modified"];
+        } else if (doc.status === "Closed - Extended") {
+            return [__("Closed - Extended"), "gray", "status,=,Closed - Extended"];
+        } else {
+            return [__("Draft"), "gray", "docstatus,=,0"];
+        }
+    }
+};
+
 frappe.ui.form.on('Importation Approval Request', {
     refresh: function(frm) {
         // Add custom buttons based on document status
