@@ -27,9 +27,37 @@ frappe.ui.form.on('Importation Approval Request', {
     refresh: function(frm) {
         // Add custom buttons based on document status
         if (frm.doc.docstatus === 1) {
-            frm.add_custom_button(__('Create Importation Approval'), function() {
-                create_importation_approval(frm);
-            }, __('Create'));
+            // Only show approval buttons if status is still Pending
+            if (frm.doc.status === "Pending") {
+                frm.add_custom_button(__('Approve Request'), function() {
+                    show_approval_dialog(frm);
+                }, __('Actions'));
+                
+                frm.add_custom_button(__('Refuse Request'), function() {
+                    frappe.confirm(
+                        __('Are you sure you want to refuse this request?'),
+                        function() {
+                            frappe.call({
+                                method: "onco.onco.doctype.importation_approval_request.importation_approval_request.approve_request",
+                                args: {
+                                    docname: frm.doc.name,
+                                    approval_type: "Refused"
+                                },
+                                callback: function(r) {
+                                    frm.reload_doc();
+                                }
+                            });
+                        }
+                    );
+                }, __('Actions'));
+            }
+            
+            // Show create buttons only if approved
+            if (frm.doc.status === "Totally Approved" || frm.doc.status === "Partially Approved") {
+                frm.add_custom_button(__('Create Importation Approval'), function() {
+                    create_importation_approval(frm);
+                }, __('Create'));
+            }
             
             frm.add_custom_button(__('Create Modification'), function() {
                 create_modification(frm);
@@ -131,26 +159,6 @@ frappe.ui.form.on('Importation Approval Request', {
         if (!has_items) {
             frappe.throw(__('Please add at least one item with requested quantity'));
         }
-    },
-    
-    approval_status: function(frm) {
-        // Auto-set quantities based on approval status
-        // "في حاله الموافقة الكلية ترحل الكمية تلقائي"
-        // (In total approval, quantity transfers automatically)
-        if (frm.doc.approval_status === 'Totally Approved') {
-            frm.doc.items.forEach(function(item) {
-                frappe.model.set_value(item.doctype, item.name, 'approved_qty', item.requested_qty);
-                frappe.model.set_value(item.doctype, item.name, 'status', 'Totally Approved');
-            });
-            frm.refresh_field('items');
-        } else if (frm.doc.approval_status === 'Refused') {
-            frm.doc.items.forEach(function(item) {
-                frappe.model.set_value(item.doctype, item.name, 'approved_qty', 0);
-                frappe.model.set_value(item.doctype, item.name, 'status', 'Refused');
-            });
-            frm.refresh_field('items');
-        }
-        // For partial approval, user must manually set quantities
     }
 });
 
@@ -426,6 +434,70 @@ function create_extension(frm) {
                         frappe.msgprint(__('Extension created successfully'));
                         frappe.set_route('Form', 'Importation Approval Request', r.message);
                     }
+                }
+            });
+        }
+    });
+    
+    d.show();
+}
+
+
+function show_approval_dialog(frm) {
+    let d = new frappe.ui.Dialog({
+        title: __('Approve Request'),
+        fields: [
+            {
+                label: 'Approval Type',
+                fieldname: 'approval_type',
+                fieldtype: 'Select',
+                options: 'Totally Approved\nPartially Approved',
+                default: 'Totally Approved',
+                reqd: 1,
+                onchange: function() {
+                    let approval_type = d.get_value('approval_type');
+                    if (approval_type === 'Totally Approved') {
+                        // Auto-fill all approved quantities
+                        frm.doc.items.forEach(function(item) {
+                            frappe.model.set_value(item.doctype, item.name, 'approved_qty', item.requested_qty);
+                        });
+                        frm.refresh_field('items');
+                    }
+                }
+            },
+            {
+                label: 'Note',
+                fieldname: 'note',
+                fieldtype: 'HTML',
+                options: '<div class="alert alert-info">For Partial Approval, please set approved quantities in the items table before approving.</div>'
+            }
+        ],
+        primary_action_label: __('Approve'),
+        primary_action: function(values) {
+            // Validate quantities for partial approval
+            if (values.approval_type === 'Partially Approved') {
+                let has_approved = false;
+                frm.doc.items.forEach(function(item) {
+                    if (item.approved_qty > 0) {
+                        has_approved = true;
+                    }
+                });
+                
+                if (!has_approved) {
+                    frappe.msgprint(__('Please set approved quantities for at least one item'));
+                    return;
+                }
+            }
+            
+            frappe.call({
+                method: "onco.onco.doctype.importation_approval_request.importation_approval_request.approve_request",
+                args: {
+                    docname: frm.doc.name,
+                    approval_type: values.approval_type
+                },
+                callback: function(r) {
+                    d.hide();
+                    frm.reload_doc();
                 }
             });
         }

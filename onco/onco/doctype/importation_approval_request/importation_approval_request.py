@@ -32,26 +32,41 @@ class ImportationApprovalRequest(Document):
                 frappe.throw(f"Approved quantity for {item.item_code} cannot exceed requested quantity")
     
     def on_submit(self):
-        """Update status based on approval_status field after submission"""
-        # Only update status if approval_status is explicitly set
-        if self.approval_status and self.approval_status != "":
-            # Update status to match approval_status
-            if self.approval_status == "Totally Approved":
-                self.db_set('status', 'Totally Approved', update_modified=False)
-            elif self.approval_status == "Partially Approved":
-                self.db_set('status', 'Partially Approved', update_modified=False)
-            elif self.approval_status == "Refused":
-                self.db_set('status', 'Refused', update_modified=False)
-            
-            # Update item statuses based on quantities
-            for item in self.items:
-                if item.approved_qty == 0:
-                    frappe.db.set_value('Importation Approval Request Item', item.name, 'status', 'Refused', update_modified=False)
-                elif item.approved_qty == item.requested_qty:
-                    frappe.db.set_value('Importation Approval Request Item', item.name, 'status', 'Totally Approved', update_modified=False)
-                else:
-                    frappe.db.set_value('Importation Approval Request Item', item.name, 'status', 'Partially Approved', update_modified=False)
-        # If approval_status is not set, status remains "Pending"
+        """On submit, keep status as Pending unless explicitly approved/refused"""
+        # Status remains "Pending" after submission
+        # Use the "Approve Request" or "Refuse Request" buttons to change status
+        pass
+
+@frappe.whitelist()
+def approve_request(docname, approval_type="Totally Approved"):
+    """Approve the importation approval request
+    
+    Args:
+        docname: Name of the Importation Approval Request
+        approval_type: Type of approval (Totally Approved, Partially Approved, Refused)
+    """
+    doc = frappe.get_doc("Importation Approval Request", docname)
+    
+    if doc.docstatus != 1:
+        frappe.throw("Document must be submitted before approval")
+    
+    # Set approval status and date
+    doc.db_set('approval_status', approval_type, update_modified=False)
+    doc.db_set('approval_date', frappe.utils.today(), update_modified=False)
+    doc.db_set('status', approval_type, update_modified=False)
+    
+    # Update item statuses based on quantities
+    for item in doc.items:
+        if item.approved_qty == 0:
+            frappe.db.set_value('Importation Approval Request Item', item.name, 'status', 'Refused', update_modified=False)
+        elif item.approved_qty == item.requested_qty:
+            frappe.db.set_value('Importation Approval Request Item', item.name, 'status', 'Totally Approved', update_modified=False)
+        else:
+            frappe.db.set_value('Importation Approval Request Item', item.name, 'status', 'Partially Approved', update_modified=False)
+    
+    frappe.msgprint(f"Request has been marked as {approval_type}")
+    
+    return doc.name
 
 @frappe.whitelist()
 def make_importation_approval(source_name, target_doc=None):
