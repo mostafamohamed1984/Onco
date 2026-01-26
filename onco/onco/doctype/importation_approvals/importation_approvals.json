@@ -236,6 +236,6 @@
     "sort_field": "modified",
     "sort_order": "DESC",
     "states": [],
-    "title_field": "reference_no",
+    "title_field": "name",
     "track_changes": 1
 }
