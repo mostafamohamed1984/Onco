@@ -1,3 +1,5 @@
+console.log("Shipments custom script loaded!");
+
 frappe.ui.form.on('Shipments', {
     refresh: function (frm) {
         // Existing logic
