@@ -22,11 +22,6 @@
         "certificate_of_euro_1_",
         "certificate_of_insurance_",
         "column_break_lmek",
-        "invoice_no",
-        "invoice_date",
-        "batch_no",
-        "expiry_date",
-        "manufacturing_date_",
         "awb_no",
         "swb_no",
         "awb_date",
@@ -150,26 +145,6 @@
         {
             "fieldname": "column_break_lmek",
             "fieldtype": "Column Break"
-        },
-        {
-            "fieldname": "invoice_no",
-            "fieldtype": "Data",
-            "label": "Invoice No"
-        },
-        {
-            "fieldname": "invoice_date",
-            "fieldtype": "Date",
-            "label": "Invoice date"
-        },
-        {
-            "fieldname": "batch_no",
-            "fieldtype": "Data",
-            "label": "Batch No"
-        },
-        {
-            "fieldname": "expiry_date",
-            "fieldtype": "Date",
-            "label": "Expiry date"
         },
         {
             "fieldname": "awb_no",
