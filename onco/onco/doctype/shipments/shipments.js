@@ -140,8 +140,18 @@ frappe.ui.form.on("Shipments", {
 });
 
 function has_attachments(frm) {
-  // Basic check if AWB or Invoice is attached 
-  return frm.doc.awb_attach || frm.doc.invoice;
+  var freight_doc = false;
+  if (frm.doc.mode_of_shipping === "Air freight") {
+    freight_doc = !!frm.doc.awb_attach;
+  } else if (frm.doc.mode_of_shipping === "Sea freight") {
+    freight_doc = !!frm.doc.swb_attach;
+  }
+
+  return freight_doc &&
+    !!frm.doc.invoice &&
+    !!frm.doc.packing_list &&
+    !!frm.doc.certificate_of_analysis_ &&
+    !!frm.doc.certificate_of_origin;
 }
 
 frappe.ui.form.on('Shipment Invoice', {

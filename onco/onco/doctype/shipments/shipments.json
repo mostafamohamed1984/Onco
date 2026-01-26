@@ -156,25 +156,29 @@
             "fieldname": "awb_no",
             "fieldtype": "Data",
             "label": "AWB no",
-            "depends_on": "eval:doc.mode_of_shipping=='Air freight'"
+            "depends_on": "eval:doc.mode_of_shipping=='Air freight'",
+            "reqd": 1
         },
         {
             "fieldname": "swb_no",
             "fieldtype": "Data",
             "label": "SWB no",
-            "depends_on": "eval:doc.mode_of_shipping=='Sea freight'"
+            "depends_on": "eval:doc.mode_of_shipping=='Sea freight'",
+            "reqd": 1
         },
         {
             "fieldname": "awb_date",
             "fieldtype": "Date",
             "label": "AWB Date",
-            "depends_on": "eval:doc.mode_of_shipping=='Air freight'"
+            "depends_on": "eval:doc.mode_of_shipping=='Air freight'",
+            "reqd": 1
         },
         {
             "fieldname": "swb_date",
             "fieldtype": "Date",
             "label": "SWB Date",
-            "depends_on": "eval:doc.mode_of_shipping=='Sea freight'"
+            "depends_on": "eval:doc.mode_of_shipping=='Sea freight'",
+            "reqd": 1
         },
         {
             "fieldname": "cold_chain_section",
