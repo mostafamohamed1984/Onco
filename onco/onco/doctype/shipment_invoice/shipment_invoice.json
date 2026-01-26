@@ -9,7 +9,6 @@
         "purchase_invoice",
         "invoice_no",
         "invoice_date",
-        "item_code",
         "item_name",
         "qty",
         "uom",
@@ -38,13 +37,6 @@
             "fieldname": "invoice_date",
             "fieldtype": "Date",
             "label": "Invoice Date",
-            "read_only": 1,
-            "in_list_view": 1
-        },
-        {
-            "fieldname": "item_code",
-            "fieldtype": "Data",
-            "label": "Item Code",
             "read_only": 1,
             "in_list_view": 1
         },

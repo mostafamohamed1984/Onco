@@ -17,6 +17,7 @@
         "awb_attach",
         "swb_attach",
         "invoice",
+        "packing_list",
         "certificate_of_analysis_",
         "certificate_of_origin",
         "certificate_of_euro_1_",
@@ -136,6 +137,11 @@
             "fieldname": "invoice",
             "fieldtype": "Attach",
             "label": "Invoice"
+        },
+        {
+            "fieldname": "packing_list",
+            "fieldtype": "Attach",
+            "label": "Packing List"
         },
         {
             "fieldname": "certificate_of_origin",
@@ -386,6 +392,34 @@
             "label": "Is Internal Supplier"
         },
         {
+            "fieldname": "invoice",
+            "fieldtype": "Attach",
+            "label": "Invoice",
+            "reqd": 1
+        },
+        {
+            "fieldname": "packing_list",
+            "fieldtype": "Attach",
+            "label": "Packing List",
+            "reqd": 1
+        },
+        {
+            "fieldname": "certificate_of_origin",
+            "fieldtype": "Attach",
+            "label": "Certificate of origin",
+            "reqd": 1
+        },
+        {
+            "fieldname": "certificate_of_euro_1_",
+            "fieldtype": "Attach",
+            "label": "Certificate of EURO 1"
+        },
+        {
+            "fieldname": "certificate_of_insurance_",
+            "fieldtype": "Attach",
+            "label": "Certificate of insurance"
+        },
+        {
             "fieldname": "column_break_qoxi",
             "fieldtype": "Column Break"
         },
@@ -397,17 +431,8 @@
         {
             "fieldname": "certificate_of_analysis_",
             "fieldtype": "Attach",
-            "label": "Certificate of analysis"
-        },
-        {
-            "fieldname": "certificate_of_euro_1_",
-            "fieldtype": "Attach",
-            "label": "Certificate of EURO 1"
-        },
-        {
-            "fieldname": "certificate_of_insurance_",
-            "fieldtype": "Attach",
-            "label": "Certificate of insurance"
+            "label": "Certificate of analysis",
+            "reqd": 1
         },
         {
             "fieldname": "manufacturing_date_",

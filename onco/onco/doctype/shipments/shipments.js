@@ -167,7 +167,6 @@ frappe.ui.form.on('Shipment Invoice', {
               var item = invoice.items[0];
               console.log("Fetched First Item for Row:", item);
 
-              frappe.model.set_value(cdt, cdn, "item_code", item.item_code);
               frappe.model.set_value(cdt, cdn, "item_name", item.item_name);
               frappe.model.set_value(cdt, cdn, "qty", item.qty);
               frappe.model.set_value(cdt, cdn, "uom", item.uom);
