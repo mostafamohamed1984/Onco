@@ -37,6 +37,7 @@ class ImportationApprovalRequest(Document):
         # Use the "Approve Request" or "Refuse Request" buttons to change status
         pass
 
+# Whitelisted methods must be at module level (not inside class)
 @frappe.whitelist()
 def approve_request(docname, approval_type="Totally Approved"):
     """Approve the importation approval request
