@@ -9,7 +9,7 @@ class ImportationApprovalRequest(Document):
         self.calculate_totals()
         self.validate_approval_quantities()
         
-        # "After Saving Status Pending" - Auto-set status to Pending on save
+        # "After Saving Status Pending" - Auto-set status to Pending on save if not set
         if not self.status or self.status == "":
             self.status = "Pending"
     
@@ -32,29 +32,26 @@ class ImportationApprovalRequest(Document):
                 frappe.throw(f"Approved quantity for {item.item_code} cannot exceed requested quantity")
     
     def on_submit(self):
-        """Update status based on approval quantities"""
-        # Only update status if approval_status is set (meaning it's been reviewed)
-        if self.approval_status:
-            self.update_approval_status()
-    
-    def update_approval_status(self):
-        """Update status based on approval_status field"""
-        # Use the approval_status field set by the user
-        if self.approval_status == "Totally Approved":
-            self.status = "Totally Approved"
-        elif self.approval_status == "Partially Approved":
-            self.status = "Partially Approved"
-        elif self.approval_status == "Refused":
-            self.status = "Refused"
-        
-        # Update item statuses based on quantities
-        for item in self.items:
-            if item.approved_qty == 0:
-                item.status = "Refused"
-            elif item.approved_qty == item.requested_qty:
-                item.status = "Totally Approved"
-            else:
-                item.status = "Partially Approved"
+        """Update status based on approval_status field after submission"""
+        # Only update status if approval_status is explicitly set
+        if self.approval_status and self.approval_status != "":
+            # Update status to match approval_status
+            if self.approval_status == "Totally Approved":
+                self.db_set('status', 'Totally Approved', update_modified=False)
+            elif self.approval_status == "Partially Approved":
+                self.db_set('status', 'Partially Approved', update_modified=False)
+            elif self.approval_status == "Refused":
+                self.db_set('status', 'Refused', update_modified=False)
+            
+            # Update item statuses based on quantities
+            for item in self.items:
+                if item.approved_qty == 0:
+                    frappe.db.set_value('Importation Approval Request Item', item.name, 'status', 'Refused', update_modified=False)
+                elif item.approved_qty == item.requested_qty:
+                    frappe.db.set_value('Importation Approval Request Item', item.name, 'status', 'Totally Approved', update_modified=False)
+                else:
+                    frappe.db.set_value('Importation Approval Request Item', item.name, 'status', 'Partially Approved', update_modified=False)
+        # If approval_status is not set, status remains "Pending"
 
 @frappe.whitelist()
 def make_importation_approval(source_name, target_doc=None):
