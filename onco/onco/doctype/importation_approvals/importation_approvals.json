@@ -44,7 +44,6 @@
         {
             "fieldname": "approval_type",
             "fieldtype": "Select",
-            "in_list_view": 1,
             "label": "Approval Type",
             "options": "\nSpecial Importation (SPIMA)\nAnnual Importation (APIMA)",
             "reqd": 1
@@ -53,7 +52,6 @@
             "default": "Today",
             "fieldname": "date",
             "fieldtype": "Date",
-            "in_list_view": 1,
             "label": "Date",
             "reqd": 1
         },
@@ -64,7 +62,6 @@
         {
             "fieldname": "importation_approval_request",
             "fieldtype": "Link",
-            "in_list_view": 1,
             "label": "Importation Approval Request",
             "options": "Importation Approval Request",
             "reqd": 1
