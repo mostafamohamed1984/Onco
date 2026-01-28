@@ -188,6 +188,9 @@ def make_purchase_order(source_name, target_doc=None):
             from erpnext.setup.utils import get_exchange_rate
             conversion_rate = get_exchange_rate(currency, company_currency, frappe.utils.nowdate()) or 1.0
         
+        # Get a valid warehouse for the company (optional - can be set later)
+        warehouse = frappe.db.get_value("Warehouse", {"company": company, "is_group": 0}, "name")
+        
         args = frappe._dict({
             "item_code": source.item_code,
             "company": company,
@@ -196,7 +199,8 @@ def make_purchase_order(source_name, target_doc=None):
             "doctype": "Purchase Order",
             "supplier": supplier,
             "currency": currency,
-            "conversion_rate": conversion_rate
+            "conversion_rate": conversion_rate,
+            "warehouse": warehouse  # Pass valid warehouse or None
         })
         item_details = get_item_details(args)
         
@@ -206,6 +210,10 @@ def make_purchase_order(source_name, target_doc=None):
         target.item_tax_template = item_details.get("item_tax_template")
         target.rate = item_details.get("price_list_rate") or item_details.get("last_purchase_rate") or 0
         target.schedule_date = frappe.utils.nowdate()
+        
+        # Set warehouse from item details if available, otherwise leave empty for user to set
+        if item_details.get("warehouse"):
+            target.warehouse = item_details.get("warehouse")
     
     doclist = get_mapped_doc("Importation Approvals", source_name, {
         "Importation Approvals": {
