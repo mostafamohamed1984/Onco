@@ -145,7 +145,7 @@ def make_purchase_order(source_name, target_doc=None):
     
     def update_item(source, target, source_parent):
         target.qty = source.approved_qty
-        target.rate = 0  # Will be filled manually
+        # target.rate = 0  # removed to allow standard pricing logic
         target.item_code = source.item_code
     
     doclist = get_mapped_doc("Importation Approvals", source_name, {

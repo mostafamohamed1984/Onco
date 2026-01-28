@@ -162,7 +162,7 @@ def make_purchase_order(source_name, target_doc=None):
         target.qty = source.approved_qty if source.approved_qty > 0 else source.requested_qty
         target.item_code = source.item_code
         target.schedule_date = frappe.utils.nowdate()
-        target.rate = 0 
+        # target.rate = 0 # removed to allow standard pricing logic 
 
     doclist = get_mapped_doc("Importation Approval Request", source_name, {
         "Importation Approval Request": {
