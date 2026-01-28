@@ -122,6 +122,9 @@ def make_importation_approval(source_name, target_doc=None):
         elif source.request_type == 'Annual Importation (APIMR)':
             target.approval_type = 'Annual Importation (APIMA)'
             target.naming_series = 'EDA-APIMA-.YYYY.-.#####'
+            
+        # Explicitly clear original_document to avoid LinkValidationError
+        target.original_document = None
     
     def update_item(source, target, source_parent):
         # Map all item fields and set approved_qty to approved_qty from request
