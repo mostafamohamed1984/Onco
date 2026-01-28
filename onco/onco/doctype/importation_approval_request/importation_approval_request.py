@@ -154,7 +154,17 @@ def make_purchase_order(source_name, target_doc=None):
     from frappe.model.mapper import get_mapped_doc
     
     def set_missing_values(source, target):
+        if not target.company:
+            target.company = frappe.db.get_default("company") or "ONCOPHARM EGYPT S.A.E"
+            
         target.supplier = source.items[0].supplier if source.items else None
+        
+        if target.supplier:
+            target.currency = frappe.db.get_value("Supplier", target.supplier, "default_currency")
+            
+        if not target.currency:
+            target.currency = frappe.db.get_value("Company", target.company, "default_currency") or "EGP"
+            
         target.transaction_date = frappe.utils.nowdate()
         target.custom_importation_approval_request = source.name # Link back if needed
 

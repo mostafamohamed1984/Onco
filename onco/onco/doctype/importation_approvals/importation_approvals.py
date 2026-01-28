@@ -134,9 +134,21 @@ def make_purchase_order(source_name, target_doc=None):
     def set_missing_values(source, target):
         target.importation_approval = source.name
         target.eda_reference = source.name
-        # Set supplier from the first item (assuming all items have same supplier)
+        
+        # Ensure company is set (required for currency/pricing)
+        if not target.company:
+            target.company = frappe.db.get_default("company") or "ONCOPHARM EGYPT S.A.E"
+            
+        # Set supplier and currency
         if source.items:
             target.supplier = source.items[0].supplier
+            if target.supplier:
+                target.currency = frappe.db.get_value("Supplier", target.supplier, "default_currency")
+        
+        if not target.currency:
+            target.currency = frappe.db.get_value("Company", target.company, "default_currency") or "EGP"
+            
+        target.transaction_date = frappe.utils.nowdate()
         
         # Send email notification to supplier if enabled
         if source.send_email_notification and target.supplier:
