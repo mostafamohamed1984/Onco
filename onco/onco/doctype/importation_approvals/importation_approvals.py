@@ -41,7 +41,7 @@ class ImportationApprovals(Document):
                 "supplier": request_item.supplier,
                 "requested_qty": request_item.requested_qty,
                 # As per HTML: "QUANTIY: AUTIMATICALLY FROM PERVIOUS STEP"
-                "approved_qty": request_item.requested_qty,
+                "approved_qty": request_item.approved_qty,
                 "status": "Approved"
             })
     

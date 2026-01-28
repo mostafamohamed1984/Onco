@@ -36,6 +36,7 @@
         {
             "fieldname": "naming_series",
             "fieldtype": "Select",
+            "hidden": 1,
             "label": "Series",
             "options": "EDA-SPIMR-.YYYY.-.#####\nEDA-APIMR-.YYYY.-.#####\nEDA-SPIMR-MD-.YYYY.-.#####\nEDA-APIMR-MD-.YYYY.-.#####\nEDA-SPIMR-EX-.YYYY.-.######\nEDA-APIMR-EX-.YYYY.-.######",
             "reqd": 1

@@ -39,31 +39,71 @@ class ImportationApprovalRequest(Document):
 
 # Whitelisted methods must be at module level (not inside class)
 @frappe.whitelist()
-def approve_request(docname, approval_type="Totally Approved"):
+def approve_request(docname, approval_type="Totally Approved", items_data=None):
     """Approve the importation approval request
     
     Args:
         docname: Name of the Importation Approval Request
         approval_type: Type of approval (Totally Approved, Partially Approved, Refused)
+        items_data: JSON string of item codes and their approved quantities (for reuse in Partial Approval)
     """
+    import json
     doc = frappe.get_doc("Importation Approval Request", docname)
     
     if doc.docstatus != 1:
         frappe.throw("Document must be submitted before approval")
     
+    # Parse items_data if provided
+    approved_quantities = {}
+    if items_data:
+        if isinstance(items_data, str):
+            approved_quantities = json.loads(items_data)
+        else:
+            approved_quantities = items_data
+
     # Set approval status and date
     doc.db_set('approval_status', approval_type, update_modified=False)
     doc.db_set('approval_date', frappe.utils.today(), update_modified=False)
     doc.db_set('status', approval_type, update_modified=False)
     
+    total_approved = 0
+    
     # Update item statuses based on quantities
     for item in doc.items:
-        if item.approved_qty == 0:
-            frappe.db.set_value('Importation Approval Request Item', item.name, 'status', 'Refused', update_modified=False)
-        elif item.approved_qty == item.requested_qty:
-            frappe.db.set_value('Importation Approval Request Item', item.name, 'status', 'Totally Approved', update_modified=False)
+        # Determine approved qty based on type
+        new_approved_qty = 0
+        
+        if approval_type == 'Refused':
+            new_approved_qty = 0
+        elif approval_type == 'Totally Approved':
+            new_approved_qty = item.requested_qty
+        elif approval_type == 'Partially Approved':
+            # Use provided data or fall back to existing/0
+            if item.item_code in approved_quantities:
+                new_approved_qty = approved_quantities[item.item_code]
+            else:
+                # If not in data, assume 0 for partial approval safety? 
+                # Or keep existing? Let's assume 0 if not explicitly approved in the dialog.
+                new_approved_qty = 0
+        
+        # Update the item's approved quantity in DB
+        frappe.db.set_value('Importation Approval Request Item', item.name, 'approved_qty', new_approved_qty, update_modified=False)
+        
+        # Update item status
+        item_status = ''
+        if new_approved_qty == 0:
+            item_status = 'Refused'
+        elif new_approved_qty == item.requested_qty:
+            item_status = 'Totally Approved'
         else:
-            frappe.db.set_value('Importation Approval Request Item', item.name, 'status', 'Partially Approved', update_modified=False)
+            item_status = 'Partially Approved'
+            
+        frappe.db.set_value('Importation Approval Request Item', item.name, 'status', item_status, update_modified=False)
+        
+        total_approved += new_approved_qty
+
+    # Update total approved qty on parent
+    doc.db_set('total_approved_qty', total_approved, update_modified=False)
     
     frappe.msgprint(f"Request has been marked as {approval_type}")
     
@@ -84,9 +124,9 @@ def make_importation_approval(source_name, target_doc=None):
             target.naming_series = 'EDA-APIMA-.YYYY.-.#####'
     
     def update_item(source, target, source_parent):
-        # Map all item fields and set approved_qty to requested_qty as per HTML requirement
+        # Map all item fields and set approved_qty to approved_qty from request
         target.requested_qty = source.requested_qty
-        target.approved_qty = source.requested_qty  # "QUANTIY: AUTIMATICALLY FROM PERVIOUS STEP"
+        target.approved_qty = source.approved_qty  # Set to the actual approved quantity
         target.status = "Approved"
     
     doclist = get_mapped_doc("Importation Approval Request", source_name, {
