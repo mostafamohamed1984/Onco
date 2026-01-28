@@ -147,6 +147,15 @@ def make_purchase_order(source_name, target_doc=None):
         
         if not target.currency:
             target.currency = frappe.db.get_value("Company", target.company, "default_currency") or "EGP"
+        
+        # Set conversion rate (1.0 if same currency, otherwise fetch from exchange rate)
+        company_currency = frappe.db.get_value("Company", target.company, "default_currency") or "EGP"
+        if target.currency == company_currency:
+            target.conversion_rate = 1.0
+        else:
+            # Try to get exchange rate
+            from erpnext.setup.utils import get_exchange_rate
+            target.conversion_rate = get_exchange_rate(target.currency, company_currency, target.transaction_date or frappe.utils.nowdate())
             
         target.transaction_date = frappe.utils.nowdate()
         
@@ -164,13 +173,30 @@ def make_purchase_order(source_name, target_doc=None):
         # Try to find company from parent or defaults
         company = frappe.db.get_default("company") or "ONCOPHARM EGYPT S.A.E"
         
+        # Get supplier and currency
+        supplier = source.supplier or (source_parent.supplier if hasattr(source_parent, "supplier") else None)
+        currency = None
+        if supplier:
+            currency = frappe.db.get_value("Supplier", supplier, "default_currency")
+        if not currency:
+            currency = frappe.db.get_value("Company", company, "default_currency") or "EGP"
+        
+        # Calculate conversion rate
+        company_currency = frappe.db.get_value("Company", company, "default_currency") or "EGP"
+        conversion_rate = 1.0
+        if currency != company_currency:
+            from erpnext.setup.utils import get_exchange_rate
+            conversion_rate = get_exchange_rate(currency, company_currency, frappe.utils.nowdate()) or 1.0
+        
         args = frappe._dict({
             "item_code": source.item_code,
             "company": company,
             "qty": target.qty,
             "transaction_date": frappe.utils.nowdate(),
             "doctype": "Purchase Order",
-            "supplier": source.supplier or (source_parent.supplier if hasattr(source_parent, "supplier") else None)
+            "supplier": supplier,
+            "currency": currency,
+            "conversion_rate": conversion_rate
         })
         item_details = get_item_details(args)
         
