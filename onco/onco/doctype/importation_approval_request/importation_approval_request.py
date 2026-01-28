@@ -133,7 +133,8 @@ def make_importation_approval(source_name, target_doc=None):
         "Importation Approval Request": {
             "doctype": "Importation Approvals",
             "field_map": {
-                "name": "importation_approval_request"
+                "name": "importation_approval_request",
+                "original_document": None  # Prevent mapping incompatible types
             }
         },
         "Importation Approval Request Item": {
@@ -146,26 +147,66 @@ def make_importation_approval(source_name, target_doc=None):
 
 @frappe.whitelist()
 def create_modification(source_name, modification_reason, requested_modification, items_to_modify=None):
-    """Create modification of Importation Approval Request
-    
-    Args:
-        source_name: Original document name
-        modification_reason: Reason for modification (Error or Change data and conditions)
-        requested_modification: Description of what needs to be modified
-        items_to_modify: Optional JSON string of items with their new quantities
-    """
+    """Create modification of Importation Approval Request"""
     import json
     
     source_doc = frappe.get_doc("Importation Approval Request", source_name)
     
-    # Create new request with MD naming series
+    # Create new request
     new_doc = frappe.copy_doc(source_doc)
     
-    # Update naming series for modification
-    if source_doc.request_type == 'Special Importation (SPIMR)':
-        new_doc.naming_series = 'EDA-SPIMR-MD-.YYYY.-.#####'
-    elif source_doc.request_type == 'Annual Importation (APIMR)':
-        new_doc.naming_series = 'EDA-APIMR-MD-.YYYY.-.#####'
+    # Determine new naming series and base prefix
+    new_series = ""
+    target_prefix = ""
+    
+    if 'SPIMR' in source_doc.naming_series or 'SPIMR' in source_name:
+        new_series = 'EDA-SPIMR-MD-.YYYY.-.#####'
+        target_prefix = 'EDA-SPIMR-MD'
+    elif 'APIMR' in source_doc.naming_series or 'APIMR' in source_name:
+        new_series = 'EDA-APIMR-MD-.YYYY.-.#####'
+        target_prefix = 'EDA-APIMR-MD'
+        
+    new_doc.naming_series = new_series
+    
+    # Custom Naming Logic to preserve sequence number
+    # Extract year and sequence from source name or series
+    # Expected formats: EDA-SPIMR-2026-00004 or EDA-SPIMR-MD-2026-00004
+    
+    parts = source_name.split('-')
+    # Try to find the numeric part at the end
+    seq_number = parts[-1]
+    
+    # Handle existing suffixes (remove them to get base number)
+    if not seq_number.isdigit():
+        # Maybe it has a suffix like 00004-1?
+        # But split('-') splits 00004 and 1.
+        # Let's assume standard format ends with sequence number or sequence-suffix
+        if parts[-1].isdigit():
+             seq_number = parts[-1]
+        elif parts[-2].isdigit():
+             seq_number = parts[-2]
+    
+    # Reconstruct name: PREFIX-YEAR-SEQ
+    # We need the Year. Let's assume current year or source year?
+    # Usually we want the year from the source series.
+    year = frappe.utils.today().split('-')[0]
+    # Ideally reuse source year if present in name
+    for part in parts:
+        if len(part) == 4 and part.isdigit() and part.startswith('20'):
+            year = part
+            break
+            
+    base_name = f"{target_prefix}-{year}-{seq_number}"
+    
+    # Check for availability
+    candidate_name = base_name
+    suffix = 0
+    
+    while frappe.db.exists("Importation Approval Request", candidate_name):
+        suffix += 1
+        candidate_name = f"{base_name}-{suffix}"
+        
+    new_doc.name = candidate_name
     
     # Add modification details
     new_doc.is_modification = 1
@@ -187,41 +228,61 @@ def create_modification(source_name, modification_reason, requested_modification
             item.approved_qty = 0
             item.status = "Pending"
     else:
-        # Reset item approval data
         for item in new_doc.items:
             item.approved_qty = 0
             item.status = "Pending"
     
     new_doc.insert()
     
-    # Close original document to prevent further Purchase Orders
+    # Close original document
     source_doc.db_set('status', 'Closed - Modified')
     
     return new_doc.name
 
 @frappe.whitelist()
 def create_extension(source_name, extension_reason, extension_details, new_validation_date=None, additional_qty=None):
-    """Create extension of Importation Approval Request
-    
-    Args:
-        source_name: Original document name
-        extension_reason: Reason for extension (Validation or Other)
-        extension_details: Description of extension
-        new_validation_date: Optional new validation date
-        additional_qty: Optional JSON string of items with additional quantities
-    """
+    """Create extension of Importation Approval Request"""
     import json
     
     source_doc = frappe.get_doc("Importation Approval Request", source_name)
     
-    # Create new request with EX naming series
+    # Create new request
     new_doc = frappe.copy_doc(source_doc)
     
-    # Update naming series for extension
-    if source_doc.request_type == 'Special Importation (SPIMR)':
-        new_doc.naming_series = 'EDA-SPIMR-EX-.YYYY.-.######'
-    elif source_doc.request_type == 'Annual Importation (APIMR)':
-        new_doc.naming_series = 'EDA-APIMR-EX-.YYYY.-.######'
+    # Determine new naming series and base prefix
+    new_series = ""
+    target_prefix = ""
+    
+    if 'SPIMR' in source_doc.naming_series or 'SPIMR' in source_name:
+        new_series = 'EDA-SPIMR-EX-.YYYY.-.######'
+        target_prefix = 'EDA-SPIMR-EX'
+    elif 'APIMR' in source_doc.naming_series or 'APIMR' in source_name:
+        new_series = 'EDA-APIMR-EX-.YYYY.-.######'
+        target_prefix = 'EDA-APIMR-EX'
+
+    new_doc.naming_series = new_series
+    
+    # Custom Naming Logic
+    parts = source_name.split('-')
+    seq_number = parts[-1]
+    if not seq_number.isdigit() and len(parts) > 1 and parts[-2].isdigit():
+        seq_number = parts[-2] # Handle suffix case
+        
+    year = frappe.utils.today().split('-')[0]
+    for part in parts:
+        if len(part) == 4 and part.isdigit() and part.startswith('20'):
+            year = part
+            break
+            
+    base_name = f"{target_prefix}-{year}-{seq_number}"
+    
+    candidate_name = base_name
+    suffix = 0
+    while frappe.db.exists("Importation Approval Request", candidate_name):
+        suffix += 1
+        candidate_name = f"{base_name}-{suffix}"
+    
+    new_doc.name = candidate_name
     
     # Add extension details
     new_doc.is_extension = 1
@@ -229,12 +290,11 @@ def create_extension(source_name, extension_reason, extension_details, new_valid
     new_doc.original_document = source_name
     new_doc.status = "Pending"
     
-    # Clear approval data for new extension
+    # Clear approval data
     new_doc.approval_status = ""
     new_doc.approval_date = ""
     new_doc.total_approved_qty = 0
     
-    # If additional quantities are provided, add them to existing quantities
     if additional_qty:
         qty_data = json.loads(additional_qty) if isinstance(additional_qty, str) else additional_qty
         for item in new_doc.items:
@@ -244,14 +304,13 @@ def create_extension(source_name, extension_reason, extension_details, new_valid
             item.approved_qty = 0
             item.status = "Pending"
     else:
-        # Reset item approval data
         for item in new_doc.items:
             item.approved_qty = 0
             item.status = "Pending"
     
     new_doc.insert()
     
-    # Close original document to prevent further Purchase Orders
+    # Close original document
     source_doc.db_set('status', 'Closed - Extended')
     
     return new_doc.name
