@@ -159,11 +159,29 @@ def make_purchase_order(source_name, target_doc=None):
         target.custom_importation_approval_request = source.name # Link back if needed
 
     def update_item(source, target, source_parent):
-        target.qty = source.approved_qty if source.approved_qty > 0 else source.requested_qty
         target.item_code = source.item_code
+        target.qty = source.approved_qty if source.approved_qty > 0 else source.requested_qty
+        
+        # Fetch item details to avoid 'Infinity' and bad tax templates
+        from erpnext.stock.get_item_details import get_item_details
+        company = frappe.db.get_default("company") or "ONCOPHARM EGYPT S.A.E"
+        
+        args = frappe._dict({
+            "item_code": source.item_code,
+            "company": company,
+            "qty": target.qty,
+            "transaction_date": frappe.utils.nowdate(),
+            "doctype": "Purchase Order",
+            "supplier": source.supplier or None
+        })
+        item_details = get_item_details(args)
+        
+        target.uom = item_details.get("uom")
+        target.stock_uom = item_details.get("stock_uom")
+        target.conversion_factor = item_details.get("conversion_factor") or 1.0
+        target.item_tax_template = item_details.get("item_tax_template")
+        target.rate = item_details.get("price_list_rate") or item_details.get("last_purchase_rate") or 0
         target.schedule_date = frappe.utils.nowdate()
-        # target.rate = 0 # removed to allow standard pricing logic 
-
     doclist = get_mapped_doc("Importation Approval Request", source_name, {
         "Importation Approval Request": {
             "doctype": "Purchase Order",

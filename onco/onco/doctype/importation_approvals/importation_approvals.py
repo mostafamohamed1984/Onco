@@ -144,9 +144,30 @@ def make_purchase_order(source_name, target_doc=None):
             send_supplier_notification(target.supplier, source.name, custom_email)
     
     def update_item(source, target, source_parent):
-        target.qty = source.approved_qty
-        # target.rate = 0  # removed to allow standard pricing logic
         target.item_code = source.item_code
+        target.qty = source.approved_qty
+        
+        # Fetch item details to avoid 'Infinity' and bad tax templates
+        from erpnext.stock.get_item_details import get_item_details
+        # Try to find company from parent or defaults
+        company = frappe.db.get_default("company") or "ONCOPHARM EGYPT S.A.E"
+        
+        args = frappe._dict({
+            "item_code": source.item_code,
+            "company": company,
+            "qty": target.qty,
+            "transaction_date": frappe.utils.nowdate(),
+            "doctype": "Purchase Order",
+            "supplier": source.supplier or (source_parent.supplier if hasattr(source_parent, "supplier") else None)
+        })
+        item_details = get_item_details(args)
+        
+        target.uom = item_details.get("uom")
+        target.stock_uom = item_details.get("stock_uom")
+        target.conversion_factor = item_details.get("conversion_factor") or 1.0
+        target.item_tax_template = item_details.get("item_tax_template")
+        target.rate = item_details.get("price_list_rate") or item_details.get("last_purchase_rate") or 0
+        target.schedule_date = frappe.utils.nowdate()
     
     doclist = get_mapped_doc("Importation Approvals", source_name, {
         "Importation Approvals": {
