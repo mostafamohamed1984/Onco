@@ -1,5 +1,48 @@
 frappe.ui.form.on('Purchase Order', {
     refresh: function (frm) {
+        if (frm.doc.docstatus === 0) {
+            // Remove incorrect/singular button if it likely exists from other scripts
+            frm.remove_custom_button('Importation Approval', 'Get Items From');
+
+            frm.add_custom_button(__('Importation Approvals'), function () {
+                erpnext.utils.map_current_doc({
+                    method: "onco.onco.doctype.importation_approvals.importation_approvals.make_purchase_order",
+                    source_doctype: "Importation Approvals",
+                    target: frm,
+                    setters: {
+                        supplier: frm.doc.supplier,
+                        schedule_date: undefined
+                    },
+                    get_query: function () {
+                        return {
+                            filters: {
+                                docstatus: 1
+                            }
+                        };
+                    }
+                })
+            }, __("Get Items From"));
+
+            frm.add_custom_button(__('Importation Approval Request'), function () {
+                erpnext.utils.map_current_doc({
+                    method: "onco.onco.doctype.importation_approval_request.importation_approval_request.make_purchase_order",
+                    source_doctype: "Importation Approval Request",
+                    target: frm,
+                    setters: {
+                        supplier: frm.doc.supplier,
+                        schedule_date: undefined
+                    },
+                    get_query: function () {
+                        return {
+                            filters: {
+                                docstatus: 1
+                            }
+                        };
+                    }
+                })
+            }, __("Get Items From"));
+        }
+
         // Optional: Filter the Link field to show only 'Approved' Supplier Quotations or specific series
         if (frm.fields_dict['custom_importation_approval']) {
             frm.set_query('custom_importation_approval', function () {

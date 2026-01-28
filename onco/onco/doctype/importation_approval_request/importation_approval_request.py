@@ -149,6 +149,37 @@ def make_importation_approval(source_name, target_doc=None):
     return doclist
 
 @frappe.whitelist()
+def make_purchase_order(source_name, target_doc=None):
+    """Create Purchase Order from Importation Approval Request"""
+    from frappe.model.mapper import get_mapped_doc
+    
+    def set_missing_values(source, target):
+        target.supplier = source.items[0].supplier if source.items else None
+        target.transaction_date = frappe.utils.nowdate()
+        target.custom_importation_approval_request = source.name # Link back if needed
+
+    def update_item(source, target, source_parent):
+        target.qty = source.approved_qty if source.approved_qty > 0 else source.requested_qty
+        target.item_code = source.item_code
+        target.schedule_date = frappe.utils.nowdate()
+        target.rate = 0 
+
+    doclist = get_mapped_doc("Importation Approval Request", source_name, {
+        "Importation Approval Request": {
+            "doctype": "Purchase Order",
+            "field_map": {
+                "name": "custom_importation_approval_ref" # Check field name
+            }
+        },
+        "Importation Approval Request Item": {
+            "doctype": "Purchase Order Item",
+            "postprocess": update_item
+        }
+    }, target_doc, set_missing_values)
+    
+    return doclist
+
+@frappe.whitelist()
 def create_modification(source_name, modification_reason, requested_modification, items_to_modify=None):
     """Create modification of Importation Approval Request"""
     import json
