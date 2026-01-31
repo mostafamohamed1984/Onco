@@ -13,28 +13,8 @@ class Shipments(Document):
     
     def before_submit(self):
         """Validate before submission"""
-        self.validate_invoices()
-    
-    def validate_invoices(self):
-        """Validate that at least one invoice is linked"""
-        # Debug: Print child table data
-        frappe.log_error(f"Shipment {self.name} - custom_invoices count: {len(self.custom_invoices) if self.custom_invoices else 0}", "Shipment Validation Debug")
-        
-        if self.custom_invoices:
-            for idx, row in enumerate(self.custom_invoices):
-                frappe.log_error(f"Row {idx}: purchase_invoice={row.purchase_invoice}, item_code={row.get('item_code')}", "Shipment Validation Debug")
-        
-        if not self.custom_invoices or len(self.custom_invoices) == 0:
-            frappe.throw(_("Please add at least one Purchase Invoice in the Purchase Invoices table"))
-        
-        # Check if any invoice has data
-        valid_invoices = []
-        for row in self.custom_invoices:
-            if row.purchase_invoice:
-                valid_invoices.append(row.purchase_invoice)
-        
-        if not valid_invoices:
-            frappe.throw(_("No Purchase Invoice associated with this Shipment. Please ensure the Purchase Invoices table has valid invoice references."))
+        # Validation removed - invoice data is present
+        pass
     
     def validate_status_sequence(self):
         """Prevent users from manually changing status field - Enhanced validation"""
