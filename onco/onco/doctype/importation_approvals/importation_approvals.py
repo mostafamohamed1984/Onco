@@ -132,8 +132,7 @@ def make_purchase_order(source_name, target_doc=None):
     source_doc.validate_purchase_order_creation()
     
     def set_missing_values(source, target):
-        target.importation_approval = source.name
-        target.eda_reference = source.name
+        target.custom_importation_approval = source.name  # Fixed: use correct field name
         
         # Ensure company is set (required for currency/pricing)
         if not target.company:
@@ -219,7 +218,7 @@ def make_purchase_order(source_name, target_doc=None):
         "Importation Approvals": {
             "doctype": "Purchase Order",
             "field_map": {
-                "name": "importation_approval"
+                "name": "custom_importation_approval"  # Fixed: use correct field name
             }
         },
         "Importation Approvals Item": {
