@@ -41,16 +41,18 @@ frappe.ui.form.on("Shipments", {
     }
   },
 
-  purchase_invoice: function (frm) {
-    if (frm.doc.purchase_invoice) {
-      frappe.db.get_value("Purchase Invoice", frm.doc.purchase_invoice, "custom_importation_approval")
-        .then(r => {
-          if (r.message && r.message.custom_importation_approval) {
-            frm.set_value("custom_importation_approval", r.message.custom_importation_approval);
-          }
-        });
-    }
-  },
+  // Commented out: Purchase Invoice doesn't have custom_importation_approval field
+  // If you need to fetch importation approval, get it from the linked Purchase Order instead
+  // purchase_invoice: function (frm) {
+  //   if (frm.doc.purchase_invoice) {
+  //     frappe.db.get_value("Purchase Invoice", frm.doc.purchase_invoice, "custom_importation_approval")
+  //       .then(r => {
+  //         if (r.message && r.message.custom_importation_approval) {
+  //           frm.set_value("custom_importation_approval", r.message.custom_importation_approval);
+  //         }
+  //       });
+  //   }
+  // },
 
   validate: function (frm) {
     if (frm.doc.cold_chain && !frm.doc.cold_chain_equipment_ready) {
