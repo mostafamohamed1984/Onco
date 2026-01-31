@@ -156,7 +156,7 @@ function has_attachments(frm) {
     !!frm.doc.certificate_of_origin;
 }
 
-frappe.ui.form.on('Shipment Invoice', {
+frappe.ui.form.on('Purchase Invoices', {
   purchase_invoice: function (frm, cdt, cdn) {
     var row = locals[cdt][cdn];
     if (row.purchase_invoice) {
@@ -179,6 +179,7 @@ frappe.ui.form.on('Shipment Invoice', {
               var item = invoice.items[0];
               console.log("Fetched First Item for Row:", item);
 
+              frappe.model.set_value(cdt, cdn, "item_code", item.item_code);
               frappe.model.set_value(cdt, cdn, "item_name", item.item_name);
               frappe.model.set_value(cdt, cdn, "qty", item.qty);
               frappe.model.set_value(cdt, cdn, "uom", item.uom);

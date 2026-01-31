@@ -8,7 +8,30 @@ from frappe.model.document import Document
 from erpnext.stock.doctype.purchase_receipt.purchase_receipt import make_purchase_invoice as _make_purchase_invoice
 class Shipments(Document):
     def validate(self):
+        self.validate_status_sequence()
         self.calculate_milestone_completion()
+    
+    def validate_status_sequence(self):
+        """Prevent users from manually changing status field - Enhanced validation"""
+        if self.is_new():
+            return
+        
+        # Get the old doc to compare
+        old_doc = self.get_doc_before_save()
+        if old_doc and old_doc.status != self.status:
+            # Check if status was changed manually (not by calculate_milestone_completion)
+            # We allow the change if it's being set by the system
+            if not self.flags.get('status_updated_by_system'):
+                frappe.throw(_("Status cannot be changed manually. It is automatically updated based on milestone completion."))
+    
+    def before_save(self):
+        """Additional validation to prevent status field manipulation"""
+        # Ensure status field cannot be set via form or API unless by system
+        if not self.is_new() and not self.flags.get('status_updated_by_system'):
+            old_doc = self.get_doc_before_save()
+            if old_doc and old_doc.status != self.status:
+                # Revert to old status if changed manually
+                self.status = old_doc.status
 
     def calculate_milestone_completion(self):
         steps = [
@@ -18,10 +41,14 @@ class Shipments(Document):
             self.customs_release_status,
             self.received_at_warehouse
         ]
+        # Set flag to allow status update by system
+        self.flags.status_updated_by_system = True
+        
         if all(steps):
             self.status = "Completed"
         elif any(steps):
             self.status = "In Progress"
+
 
     def on_submit(self):
         if self.received_at_warehouse:
@@ -122,34 +149,28 @@ from frappe.model.mapper import get_mapped_doc
 def make_purchase_receipt(source_name, target_doc=None):
 	doc = frappe.get_doc("Shipments", source_name)
 	
-	invoices = []
-	if doc.purchase_invoice:
-		invoices.append(doc.purchase_invoice)
+	# Collect all items from the Purchase Invoices child table
+	if not doc.custom_invoices or len(doc.custom_invoices) == 0:
+		frappe.throw("Please link at least one Purchase Invoice with items first")
+
+	# Group items by invoice to get unique invoices
+	invoices_dict = {}
+	for row in doc.custom_invoices:
+		if row.purchase_invoice:
+			if row.purchase_invoice not in invoices_dict:
+				invoices_dict[row.purchase_invoice] = []
+			invoices_dict[row.purchase_invoice].append(row)
 	
-	if doc.custom_invoices:
-		for row in doc.custom_invoices:
-			if row.purchase_invoice and row.purchase_invoice not in invoices:
-				invoices.append(row.purchase_invoice)
-				
+	invoices = list(invoices_dict.keys())
+	
 	if not invoices:
-		frappe.throw("Please link at least one Purchase Invoice first")
+		frappe.throw("No valid Purchase Invoices found in the child table")
 
 	def set_missing_values(source, target):
 		target.run_method("set_missing_values")
 		target.run_method("calculate_taxes_and_totals")
 		# Link Shipment
 		target.custom_shipment_ref = source_name
-		
-		# Propagate Shipment data to items
-		for item in target.items:
-			if doc.batch_no:
-				item.batch_no = doc.batch_no
-			if doc.expiry_date:
-				item.expiry_date = doc.expiry_date
-			if doc.manufacturing_date_:
-				item.manufacturing_date = doc.manufacturing_date_
-			if doc.invoice_no:
-				item.custom_invoice_no = doc.invoice_no # Added custom field for traceability if needed
 
 	# Map the first invoice to create the target doc
 	target_doc = get_mapped_doc("Purchase Invoice", invoices[0], {
@@ -164,26 +185,43 @@ def make_purchase_receipt(source_name, target_doc=None):
 		},
 	}, target_doc, set_missing_values)
 
-	# Map subsequent invoices and append items
-	for inv_name in invoices[1:]:
-		inv_doc = frappe.get_doc("Purchase Invoice", inv_name)
-		for item in inv_doc.items:
-			# Manually map item
-			target_doc.append("items", {
-				"item_code": item.item_code,
-				"item_name": item.item_name,
-				"description": item.description,
-				"qty": item.qty,
-				"uom": item.uom,
-				"rate": item.rate,
-				"purchase_order": item.purchase_order,
-				"purchase_invoice_item": item.name,
-				"purchase_invoice": inv_name,
-				"warehouse": doc.source_warehouse or item.warehouse or target_doc.set_warehouse,
-				"batch_no": doc.batch_no,
-				"expiry_date": doc.expiry_date,
-				"manufacturing_date": doc.manufacturing_date_
-			})
+	# Clear the items and rebuild from our child table data
+	target_doc.items = []
+	
+	# Add all items from all invoices based on the child table
+	for inv_name in invoices:
+		items_for_invoice = invoices_dict[inv_name]
+		for item_row in items_for_invoice:
+			# Fetch the actual item from Purchase Invoice to get all details
+			pi_item = frappe.db.get_value("Purchase Invoice Item", 
+				filters={
+					"parent": inv_name,
+					"item_code": item_row.item_code
+				},
+				fieldname=["name", "item_code", "item_name", "description", "qty", "uom", 
+						   "rate", "purchase_order", "warehouse", "expense_account", 
+						   "cost_center", "project"],
+				as_dict=True
+			)
+			
+			if pi_item:
+				target_doc.append("items", {
+					"item_code": pi_item.item_code,
+					"item_name": pi_item.item_name,
+					"description": pi_item.description,
+					"qty": item_row.qty,  # Use qty from child table
+					"uom": item_row.uom,
+					"rate": item_row.rate,
+					"purchase_order": pi_item.purchase_order,
+					"purchase_invoice_item": pi_item.name,
+					"purchase_invoice": inv_name,
+					"warehouse": doc.source_warehouse or pi_item.warehouse or target_doc.set_warehouse,
+					"batch_no": item_row.batch_no,
+					"expiry_date": item_row.expiry_date,
+					"expense_account": pi_item.expense_account,
+					"cost_center": pi_item.cost_center,
+					"project": pi_item.project
+				})
 	
 	return target_doc
 
