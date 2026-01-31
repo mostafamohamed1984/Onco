@@ -112,7 +112,7 @@
             "name": "Purchase Order-custom_importation_approval",
             "no_copy": 0,
             "non_negative": 0,
-            "options": "Supplier Quotation",
+            "options": "Importation Approvals",
             "owner": "Administrator",
             "parent": null,
             "parentfield": null,

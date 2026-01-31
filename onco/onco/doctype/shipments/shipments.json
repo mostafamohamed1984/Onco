@@ -97,7 +97,7 @@
             "fieldname": "custom_importation_approval",
             "fieldtype": "Link",
             "label": "Importation Approval Ref",
-            "options": "Supplier Quotation",
+            "options": "Importation Approvals",
             "description": "Regulatory: fiche importation approvals Number"
         },
         {
