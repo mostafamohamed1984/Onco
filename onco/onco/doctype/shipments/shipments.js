@@ -20,14 +20,49 @@ frappe.ui.form.on("Shipments", {
 
   mode_of_shipping: function (frm) {
     frm.trigger("set_naming_series");
+    frm.trigger("render_dashboard");
   },
 
   awb_no: function (frm) {
     frm.trigger("set_naming_series");
+    frm.trigger("render_dashboard");
   },
 
   swb_no: function (frm) {
     frm.trigger("set_naming_series");
+    frm.trigger("render_dashboard");
+  },
+
+  awb_date: function (frm) {
+    frm.trigger("render_dashboard");
+  },
+
+  swb_date: function (frm) {
+    frm.trigger("render_dashboard");
+  },
+
+  awb_attach: function (frm) {
+    frm.trigger("render_dashboard");
+  },
+
+  swb_attach: function (frm) {
+    frm.trigger("render_dashboard");
+  },
+
+  invoice: function (frm) {
+    frm.trigger("render_dashboard");
+  },
+
+  packing_list: function (frm) {
+    frm.trigger("render_dashboard");
+  },
+
+  certificate_of_analysis_: function (frm) {
+    frm.trigger("render_dashboard");
+  },
+
+  certificate_of_origin: function (frm) {
+    frm.trigger("render_dashboard");
   },
 
   set_naming_series: function (frm) {
@@ -142,14 +177,21 @@ frappe.ui.form.on("Shipments", {
 });
 
 function has_attachments(frm) {
-  var freight_doc = false;
-  if (frm.doc.mode_of_shipping === "Air freight") {
-    freight_doc = !!frm.doc.awb_attach;
-  } else if (frm.doc.mode_of_shipping === "Sea freight") {
-    freight_doc = !!frm.doc.swb_attach;
+  // Check mode of shipping is selected
+  if (!frm.doc.mode_of_shipping) {
+    return false;
   }
 
-  return freight_doc &&
+  // Check freight-specific fields
+  var freight_complete = false;
+  if (frm.doc.mode_of_shipping === "Air freight") {
+    freight_complete = !!frm.doc.awb_attach && !!frm.doc.awb_no && !!frm.doc.awb_date;
+  } else if (frm.doc.mode_of_shipping === "Sea freight") {
+    freight_complete = !!frm.doc.swb_attach && !!frm.doc.swb_no && !!frm.doc.swb_date;
+  }
+
+  // Check all required attachments
+  return freight_complete &&
     !!frm.doc.invoice &&
     !!frm.doc.packing_list &&
     !!frm.doc.certificate_of_analysis_ &&
