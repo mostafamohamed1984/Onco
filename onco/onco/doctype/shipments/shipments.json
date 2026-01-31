@@ -216,7 +216,8 @@
         {
             "fieldname": "2_arrival_status_section",
             "fieldtype": "Section Break",
-            "label": "2 Arrival Status "
+            "label": "2 Arrival Status ",
+            "depends_on": "eval:doc.mode_of_shipping && ((doc.mode_of_shipping=='Air freight' && doc.awb_no && doc.awb_date && doc.awb_attach) || (doc.mode_of_shipping=='Sea freight' && doc.swb_no && doc.swb_date && doc.swb_attach)) && doc.invoice && doc.packing_list && doc.certificate_of_analysis_ && doc.certificate_of_origin"
         },
         {
             "default": "0",
@@ -236,7 +237,8 @@
         {
             "fieldname": "3_bank_authantication_section",
             "fieldtype": "Section Break",
-            "label": "3 Bank Authentication"
+            "label": "3 Bank Authentication",
+            "depends_on": "eval:doc.arrived==1"
         },
         {
             "default": "0",
@@ -271,7 +273,8 @@
         {
             "fieldname": "4_restricted_release_statu_section",
             "fieldtype": "Section Break",
-            "label": "4 Restricted Release Status"
+            "label": "4 Restricted Release Status",
+            "depends_on": "eval:doc.bank_authenticated==1"
         },
         {
             "fieldname": "date_of_submission_restricted",
@@ -288,7 +291,8 @@
         {
             "fieldname": "5_customs_release_status_section",
             "fieldtype": "Section Break",
-            "label": "5 Customs Release Status"
+            "label": "5 Customs Release Status",
+            "depends_on": "eval:doc.restricted_release_status==1"
         },
         {
             "default": "0",
@@ -317,7 +321,8 @@
         {
             "fieldname": "6_received_at_warehouse_section",
             "fieldtype": "Section Break",
-            "label": "6 Received at warehouse"
+            "label": "6 Received at warehouse",
+            "depends_on": "eval:doc.customs_release_status==1"
         },
         {
             "default": "0",
