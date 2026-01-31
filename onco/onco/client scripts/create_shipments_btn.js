@@ -28,7 +28,7 @@ frappe.ui.form.on('Purchase Invoice', {
                                 // Add each item from the invoice to the child table
                                 // One row per item
                                 invoice.items.forEach(function (item) {
-                                    let child = frappe.model.add_child(shipment, 'Purchase Invoices', 'custom_invoices');
+                                    let child = frappe.model.add_child(shipment, 'Shipment Invoice', 'custom_invoices');
 
                                     // Invoice information (same for all rows from this invoice)
                                     child.purchase_invoice = p_inv;

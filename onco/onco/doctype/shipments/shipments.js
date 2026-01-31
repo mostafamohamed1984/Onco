@@ -156,7 +156,7 @@ function has_attachments(frm) {
     !!frm.doc.certificate_of_origin;
 }
 
-frappe.ui.form.on('Purchase Invoices', {
+frappe.ui.form.on('Shipment Invoice', {
   purchase_invoice: function (frm, cdt, cdn) {
     var row = locals[cdt][cdn];
     if (row.purchase_invoice) {

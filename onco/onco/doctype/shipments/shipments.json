@@ -104,7 +104,7 @@
             "fieldname": "custom_invoices",
             "fieldtype": "Table",
             "label": "Purchase Invoices",
-            "options": "Purchase Invoices"
+            "options": "Shipment Invoice"
         },
         {
             "fieldname": "packing_details_section",
