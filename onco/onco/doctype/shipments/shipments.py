@@ -156,7 +156,10 @@ def make_purchase_receipt(source_name, target_doc=None):
 			)
 			
 			if pi_item:
-				target_doc.append("items", {
+				# Check if item has batch tracking enabled
+				item_doc = frappe.get_doc("Item", pi_item.item_code)
+				
+				pr_item = {
 					"item_code": pi_item.item_code,
 					"item_name": pi_item.item_name,
 					"description": pi_item.description,
@@ -169,12 +172,21 @@ def make_purchase_receipt(source_name, target_doc=None):
 					"purchase_invoice_item": pi_item.name,
 					"purchase_invoice": inv_name,
 					"warehouse": doc.source_warehouse or pi_item.warehouse or target_doc.set_warehouse,
-					"batch_no": item_row.batch_no,
-					"expiry_date": item_row.expiry_date,
 					"expense_account": pi_item.expense_account,
 					"cost_center": pi_item.cost_center,
 					"project": pi_item.project
-				})
+				}
+				
+				# Only add batch_no if item has batch tracking and batch is provided
+				if item_doc.has_batch_no and item_row.batch_no:
+					pr_item["batch_no"] = item_row.batch_no
+					pr_item["use_serial_batch_fields"] = 1  # Use legacy batch fields for ERPNext v15
+				
+				# Add expiry date if provided
+				if item_row.expiry_date:
+					pr_item["expiry_date"] = item_row.expiry_date
+				
+				target_doc.append("items", pr_item)
 	
 	return target_doc
 
