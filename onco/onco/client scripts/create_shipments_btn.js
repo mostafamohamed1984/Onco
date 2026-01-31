@@ -25,6 +25,11 @@ frappe.ui.form.on('Purchase Invoice', {
                             frappe.model.with_doctype('Shipments', function () {
                                 let shipment = frappe.model.get_new_doc('Shipments');
 
+                                // Set Importation Approval reference from Purchase Invoice
+                                if (invoice.custom_importation_approval) {
+                                    shipment.custom_importation_approval = invoice.custom_importation_approval;
+                                }
+
                                 // Add each item from the invoice to the child table
                                 // One row per item
                                 invoice.items.forEach(function (item) {
