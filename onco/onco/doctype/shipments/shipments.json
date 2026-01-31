@@ -345,8 +345,7 @@
             "fieldname": "received_warehouse",
             "fieldtype": "Link",
             "label": "Received Warehouse",
-            "options": "Warehouse",
-            "default": "Imported Finished Phr Incoming"
+            "options": "Warehouse"
         },
         {
             "fieldname": "received_by",
@@ -369,15 +368,13 @@
             "fieldname": "source_warehouse",
             "fieldtype": "Link",
             "label": "Source Warehouse",
-            "options": "Warehouse",
-            "default": "Imported  Finished Phr Incoming Warehouse - Onco"
+            "options": "Warehouse"
         },
         {
             "fieldname": "target_warehouse",
             "fieldtype": "Link",
             "label": "Target Warehouse",
-            "options": "Warehouse",
-            "default": "Imported Finished Phr Receipt and Inspection Warehouse  - Onco"
+            "options": "Warehouse"
         },
         {
             "fieldname": "column_break_mkxp",

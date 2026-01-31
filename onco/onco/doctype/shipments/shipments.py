@@ -51,62 +51,8 @@ class Shipments(Document):
 
 
     def on_submit(self):
-        if self.received_at_warehouse:
-            self.create_stock_transfer()
-
-    def create_stock_transfer(self):
-        """Create a Material Transfer Stock Entry from Source to Target Warehouse"""
-        if not self.source_warehouse or not self.target_warehouse:
-            return
-
-        # Check if transfer already exists
-        existing = frappe.get_all("Stock Entry", filters={
-            "custom_shipment_ref": self.name,
-            "stock_entry_type": "Material Transfer",
-            "docstatus": ["<", 2]
-        })
-        if existing:
-            return
-
-        # Fetch items from linked Purchase Receipt or Shipment Items (if we had any)
-        # Since we use PI/PR, let's fetch from the PR linked to this shipment
-        pr_items = frappe.get_all("Purchase Receipt Item", 
-            filters={"parent": ["in", frappe.get_all("Purchase Receipt", filters={"custom_shipment_ref": self.name, "docstatus": 1}, pluck="name")]},
-            fields=["item_code", "qty", "uom", "batch_no"])
-
-        if not pr_items:
-            # Fallback: check linked PIs
-            invoices = [self.purchase_invoice] if self.purchase_invoice else []
-            if self.custom_invoices:
-                invoices.extend([row.purchase_invoice for row in self.custom_invoices if row.purchase_invoice])
-            
-            pr_items = frappe.get_all("Purchase Invoice Item",
-                filters={"parent": ["in", invoices]},
-                fields=["item_code", "qty", "uom"])
-
-        if not pr_items:
-            return
-
-        se = frappe.get_doc({
-            "doctype": "Stock Entry",
-            "stock_entry_type": "Material Transfer",
-            "custom_shipment_ref": self.name,
-            "items": []
-        })
-
-        for item in pr_items:
-            se.append("items", {
-                "item_code": item.item_code,
-                "s_warehouse": self.source_warehouse,
-                "t_warehouse": self.target_warehouse,
-                "qty": item.qty,
-                "uom": item.uom,
-                "batch_no": item.get("batch_no") or self.batch_no
-            })
-
-        se.insert()
-        se.submit()
-        frappe.msgprint(_("Automated Stock Transfer created: {0}").format(se.name))
+        """Update status when shipment is submitted"""
+        pass  # Stock transfer is created from Authority Good Release, not from Shipments
 
 @frappe.whitelist()
 def set_shipment_id(purchase_inv,ship):

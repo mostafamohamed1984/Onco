@@ -11,11 +11,6 @@ frappe.ui.form.on("Shipments", {
         })
       }, __("Create"));
     }
-
-    if (frm.doc.docstatus === 0 && !frm.doc.source_warehouse) {
-      frm.set_value("source_warehouse", "Imported Finished Phr Incoming Warehouse - Onco");
-      frm.set_value("target_warehouse", "Imported Finished Phr Receipt and Inspection Warehouse - Onco");
-    }
   },
 
   mode_of_shipping: function (frm) {
