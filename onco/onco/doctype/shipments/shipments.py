@@ -150,8 +150,8 @@ def make_purchase_receipt(source_name, target_doc=None):
 					"item_code": item_row.item_code
 				},
 				fieldname=["name", "item_code", "item_name", "description", "qty", "uom", 
-						   "rate", "purchase_order", "warehouse", "expense_account", 
-						   "cost_center", "project"],
+						   "stock_uom", "conversion_factor", "rate", "purchase_order", 
+						   "warehouse", "expense_account", "cost_center", "project"],
 				as_dict=True
 			)
 			
@@ -162,6 +162,8 @@ def make_purchase_receipt(source_name, target_doc=None):
 					"description": pi_item.description,
 					"qty": item_row.qty,  # Use qty from child table
 					"uom": item_row.uom,
+					"stock_uom": pi_item.stock_uom,  # Required field
+					"conversion_factor": pi_item.conversion_factor or 1.0,
 					"rate": item_row.rate,
 					"purchase_order": pi_item.purchase_order,
 					"purchase_invoice_item": pi_item.name,
