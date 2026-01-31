@@ -9,7 +9,23 @@ from erpnext.stock.doctype.purchase_receipt.purchase_receipt import make_purchas
 class Shipments(Document):
     def validate(self):
         self.validate_status_sequence()
+        self.validate_invoices()
         self.calculate_milestone_completion()
+    
+    def validate_invoices(self):
+        """Validate that at least one invoice is linked"""
+        if not self.custom_invoices or len(self.custom_invoices) == 0:
+            frappe.throw(_("Please add at least one Purchase Invoice in the Purchase Invoices table"))
+        
+        # Check if any invoice has data
+        has_valid_invoice = False
+        for row in self.custom_invoices:
+            if row.purchase_invoice:
+                has_valid_invoice = True
+                break
+        
+        if not has_valid_invoice:
+            frappe.throw(_("No Purchase Invoice associated with this Shipment."))
     
     def validate_status_sequence(self):
         """Prevent users from manually changing status field - Enhanced validation"""
