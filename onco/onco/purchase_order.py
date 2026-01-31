@@ -2,11 +2,11 @@
 # For license information, please see license.txt
 
 import frappe
-from frappe.model.document import Document
 from frappe.utils import getdate
+from erpnext.buying.doctype.purchase_order.purchase_order import PurchaseOrder
 
 
-class CustomPurchaseOrder(Document):
+class CustomPurchaseOrder(PurchaseOrder):
 	"""
 	Custom Purchase Order class to override autoname method
 	Format: PO-YYYY-XXXX-ZZZ
