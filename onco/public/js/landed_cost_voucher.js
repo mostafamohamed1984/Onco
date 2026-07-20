@@ -61,8 +61,10 @@ function fetch_vendor_invoices(frm, shipment_id) {
                 let added_to_taxes = 0;
                 let added_to_vi = 0;
 
+                let current_vi = (frm.doc.vendor_invoices || []).map(v => v.vendor_invoice);
+
                 r.message.forEach(invoice => {
-                    if (invoice.remaining > 0) {
+                    if (invoice.remaining > 0 && !current_vi.includes(invoice.name)) {
                         let vi_row = frm.add_child('vendor_invoices');
                         vi_row.vendor_invoice = invoice.name;
                         vi_row.amount = invoice.remaining;

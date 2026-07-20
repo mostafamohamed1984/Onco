@@ -9,6 +9,7 @@ Landed Cost Voucher Customizations
 
 import frappe
 from frappe import _
+from frappe.utils import flt
 
 
 @frappe.whitelist()
@@ -210,6 +211,31 @@ def validate_landed_cost_voucher(doc, method):
                         "but this Landed Cost Voucher is for Shipment {2}"
                     ).format(voucher_row.receipt_document, legacy_shipment, doc.custom_shipment_id))
 
+    # Validate that the cumulative landed cost applied to a vendor invoice
+    # (already used in submitted LCVs + this voucher) never exceeds the
+    # vendor invoice's total amount.
+    for tax in (doc.taxes or []):
+        if not tax.custom_vendor_invoice:
+            continue
+
+        invoice_total = frappe.db.get_value(
+            "Purchase Invoice", tax.custom_vendor_invoice, "grand_total"
+        ) or 0
+        already_used = get_already_used_in_lcv(
+            tax.custom_vendor_invoice, doc.custom_shipment_id
+        )
+        applied_total = flt(tax.amount) + flt(already_used)
+
+        if applied_total > flt(invoice_total):
+            frappe.throw(_(
+                "Landed cost for vendor invoice {0} exceeds its total amount {1}. "
+                "Already used in other Landed Cost Vouchers: {2}, this voucher: {3}."
+            ).format(
+                tax.custom_vendor_invoice,
+                invoice_total,
+                already_used,
+                tax.amount
+            ))
 
 def before_submit_landed_cost_voucher(doc, method):
     """

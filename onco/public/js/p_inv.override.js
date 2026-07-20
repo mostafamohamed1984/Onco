@@ -112,8 +112,16 @@
 
 frappe.ui.form.on('Purchase Invoice', {
     refresh: function(frm) {
-        if (frm.is_new() && frm.doc.update_stock !== 1) {
-            frm.set_value('update_stock', 1);
+        if (frm.is_new() && frm.doc.update_stock == null) {
+            frm.set_value('update_stock', 0);
+        }
+        if (frm.doc.docstatus === 1) {
+            frm.add_custom_button(__('Purchase Receipt'), function () {
+                frappe.model.open_mapped_doc({
+                    method: 'onco.onco.purchase_invoice.make_purchase_receipt_from_pi',
+                    frm: frm
+                });
+            }, __('Create'));
         }
         frm.set_query("item_code", "items", function () {
             if (!frm.doc.supplier) return { filters: [] };

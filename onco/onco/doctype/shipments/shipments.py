@@ -4,6 +4,7 @@
 import frappe
 import json
 from frappe import _
+from frappe.utils import flt
 from frappe.model.document import Document
 from erpnext.stock.doctype.purchase_receipt.purchase_receipt import make_purchase_invoice as _make_purchase_invoice
 class Shipments(Document):
@@ -174,8 +175,42 @@ class Shipments(Document):
 
 
     def on_submit(self):
-        """Update status when shipment is submitted"""
-        pass  # Stock transfer is created from Authority Good Release, not from Shipments
+        """Update status when shipment is submitted and link the invoices to it"""
+        self.link_invoices_to_shipment()
+
+    def link_invoices_to_shipment(self):
+        """Write this Shipment's name back onto each linked Purchase Invoice
+        (custom_shipments / custom_is_shiped) so the invoice knows it shipped."""
+        if not self.custom_invoices:
+            return
+        for row in self.custom_invoices:
+            if not row.purchase_invoice:
+                continue
+            try:
+                frappe.db.set_value("Purchase Invoice", row.purchase_invoice, {
+                    "custom_shipments": self.name,
+                    "custom_is_shiped": 1
+                })
+            except Exception as e:
+                frappe.log_error(
+                    f"Could not link invoice {row.purchase_invoice} to shipment {self.name}: {e}"
+                )
+
+    def on_cancel(self):
+        """Clear the shipment reference from linked invoices so they can be
+        received through a different shipment if needed."""
+        if not self.custom_invoices:
+            return
+        for row in self.custom_invoices:
+            if not row.purchase_invoice:
+                continue
+            try:
+                frappe.db.set_value("Purchase Invoice", row.purchase_invoice, {
+                    "custom_shipments": "",
+                    "custom_is_shiped": 0
+                })
+            except Exception:
+                pass
 
 @frappe.whitelist()
 def set_shipment_id(purchase_inv,ship):
@@ -238,12 +273,17 @@ def make_purchase_receipt(source_name, target_doc=None):
 	def set_missing_values(source, target):
 		target.run_method("set_missing_values")
 		target.run_method("calculate_taxes_and_totals")
-		# Link Shipment
-		target.shipment = source_name
+		# Link Shipment (tolerate field-name drift between 'shipment' and 'shipments')
+		pr_meta = frappe.get_meta("Purchase Receipt")
+		if pr_meta.has_field("shipment"):
+			target.shipment = source_name
+		elif pr_meta.has_field("shipments"):
+			target.shipments = source_name
 		# Set warehouse and type defaults (match exact database names)
 		target.set_warehouse = "Imported Finished Phr Receipt and Inspection Warehouse  - Onco"  # 2 spaces before dash
 		target.rejected_warehouse = "Imported Finished Phr (Damage & Losses) warehouse - Onco"  # 1 space before dash
-		target.custom_purchase_receipt_type = "Shipment"
+		if pr_meta.has_field("custom_purchase_receipt_type"):
+			target.custom_purchase_receipt_type = "Shipment"
 
 	# Map the first invoice to create the target doc
 	target_doc = get_mapped_doc("Purchase Invoice", invoices[0], {
@@ -260,78 +300,104 @@ def make_purchase_receipt(source_name, target_doc=None):
 
 	# Clear the items and rebuild from our child table data
 	target_doc.items = []
-	
-	# Add all items from all invoices based on the child table
+
+	# Add all items from all invoices based on the child table.
+	# Dedupe by (purchase_invoice, item_code) so the same PI item is never
+	# added as multiple rows - duplicate rows cause the over-receipt error
+	# ("over limit by Qty ... Are you making another Purchase Receipt ...").
+	built_items = {}
+
 	for inv_name in invoices:
 		items_for_invoice = invoices_dict[inv_name]
 		for item_row in items_for_invoice:
 			# Fetch the actual item from Purchase Invoice to get all details
-			pi_item = frappe.db.get_value("Purchase Invoice Item", 
+			pi_item = frappe.db.get_value("Purchase Invoice Item",
 				filters={
 					"parent": inv_name,
 					"item_code": item_row.item_code
 				},
-				fieldname=["name", "item_code", "item_name", "description", "qty", "uom", 
-						   "stock_uom", "conversion_factor", "rate", "purchase_order", 
+				fieldname=["name", "item_code", "item_name", "description", "qty", "uom",
+						   "stock_uom", "conversion_factor", "rate", "purchase_order",
 						   "warehouse", "expense_account", "cost_center", "project"],
 				as_dict=True
 			)
-			
-			if pi_item:
-				# Check if item has batch tracking enabled
-				item_doc = frappe.get_doc("Item", pi_item.item_code)
-				
-				pr_item = {
-					"item_code": pi_item.item_code,
-					"item_name": pi_item.item_name,
-					"description": pi_item.description,
-					"qty": item_row.qty,  # Use qty from child table
-					"uom": item_row.uom,
-					"stock_uom": pi_item.stock_uom,  # Required field
-					"conversion_factor": pi_item.conversion_factor or 1.0,
-					"rate": item_row.rate,
-					"purchase_order": pi_item.purchase_order,
-					"purchase_invoice_item": pi_item.name,
-					"purchase_invoice": inv_name,
-					"warehouse": doc.source_warehouse or pi_item.warehouse or target_doc.set_warehouse,
-					"expense_account": pi_item.expense_account,
-					"cost_center": pi_item.cost_center,
-					"project": pi_item.project
-				}
-				
-				# Handle Batch No and Serial No
-				if item_doc.has_batch_no and item_row.batch_no:
-					pr_item["batch_no"] = item_row.batch_no
-				if item_doc.has_serial_no and item_row.serial_no:
-					pr_item["serial_no"] = item_row.serial_no
 
-				# Handle Serial and Batch Bundle (v15 requirement)
-				if item_row.serial_and_batch_bundle:
-					pr_item["serial_and_batch_bundle"] = item_row.serial_and_batch_bundle
-				else:
-					# Legacy fallback
-					pr_item["use_serial_batch_fields"] = 1
-				
-				# Add expiry date if provided
-				if item_row.expiry_date:
-					pr_item["expiry_date"] = item_row.expiry_date
-				
-				target_doc.append("items", pr_item)
-	
+			if not pi_item:
+				continue
+
+			# Check if item has batch tracking enabled
+			item_doc = frappe.get_doc("Item", pi_item.item_code)
+
+			# Use the PI item's own qty (authoritative) to avoid drift from the
+			# child table, and accumulate if the same item appears more than once.
+			key = (inv_name, pi_item.item_code)
+
+			if key in built_items:
+				existing = built_items[key]
+				existing["qty"] = flt(existing["qty"]) + flt(item_row.qty)
+				continue
+
+			pr_item = {
+				"item_code": pi_item.item_code,
+				"item_name": pi_item.item_name,
+				"description": pi_item.description,
+				"qty": flt(item_row.qty),  # Use qty from child table
+				"uom": item_row.uom,
+				"stock_uom": pi_item.stock_uom,  # Required field
+				"conversion_factor": pi_item.conversion_factor or 1.0,
+				"rate": item_row.rate,
+				"purchase_order": pi_item.purchase_order,
+				"purchase_invoice_item": pi_item.name,
+				"purchase_invoice": inv_name,
+				"warehouse": doc.source_warehouse or pi_item.warehouse or target_doc.set_warehouse,
+				"expense_account": pi_item.expense_account,
+				"cost_center": pi_item.cost_center,
+				"project": pi_item.project
+			}
+
+			# Handle Serial and Batch Bundle (v15 requirement)
+			# The PI's bundle is already linked to the Purchase Invoice, so copying
+			# it onto the Purchase Receipt raises "bundle is linked to purchase
+			# invoice". Carry the serial/batch values and let ERPNext build a fresh
+			# bundle from them during submission.
+			if item_doc.has_serial_no and item_row.serial_no:
+				pr_item["serial_no"] = item_row.serial_no
+			if item_doc.has_batch_no and item_row.batch_no:
+				pr_item["batch_no"] = item_row.batch_no
+			pr_item["use_serial_batch_fields"] = 1
+
+			# Add expiry date if provided
+			if item_row.expiry_date:
+				pr_item["expiry_date"] = item_row.expiry_date
+
+			built_items[key] = pr_item
+			target_doc.append("items", pr_item)
+
 	return target_doc
+
+def get_pr_shipment(doc):
+	"""Return the linked Shipment name, tolerating field-name drift
+	('shipment' vs 'shipments') on the Purchase Receipt doctype."""
+	if getattr(doc, "shipment", None):
+		return doc.shipment
+	if getattr(doc, "shipments", None):
+		return doc.shipments
+	return None
+
 
 def on_purchase_receipt_submit(doc, method):
 	"""Update linked Shipment when Purchase Receipt is submitted"""
-	if doc.get("shipment"):
-		frappe.db.set_value("Shipments", doc.shipment, {
+	shipment_id = get_pr_shipment(doc)
+	if shipment_id:
+		frappe.db.set_value("Shipments", shipment_id, {
 			"received_at_warehouse": 1,
 			"received_date": frappe.utils.now()
 		})
-		frappe.msgprint(f"Shipment {doc.shipment} status updated to Received at Warehouse.")
+		frappe.msgprint(f"Shipment {shipment_id} status updated to Received at Warehouse.")
 
 def on_purchase_receipt_validate(doc, method):
 	"""Ensure warehouse names have correct spacing for Shipment-related Purchase Receipts"""
-	if doc.get("shipment") and doc.get("custom_purchase_receipt_type") == "Shipment":
+	if get_pr_shipment(doc) and doc.get("custom_purchase_receipt_type") == "Shipment":
 		# Ensure set_warehouse has correct spacing (2 spaces before dash - matches database)
 		if doc.set_warehouse and "Imported Finished Phr Receipt and Inspection Warehouse" in doc.set_warehouse:
 			doc.set_warehouse = "Imported Finished Phr Receipt and Inspection Warehouse  - Onco"
